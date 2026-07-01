@@ -1,0 +1,6 @@
+Forehand, oyuncunun raket tutan eli tarafından vurulan temel vuruştur.
+Backhand, rakete tutmayan el tarafından yapılan vuruş olup tek veya çift elle uygulanabilir.
+Servis, oyunun en kritik vuruşudur ve hız ile isabet kombinasyonu gerektirir.
+Vole, topun yere değmeden havada vurulduğu net yakını tekniğidir.
+Topspin, topa üst rotasyon vererek sahanın içinde düşmesini sağlayan vuruş tekniğidir.
+Slice ise topa alt rotasyon vererek alçak ve kayar bir sektirme etkisi yaratır.

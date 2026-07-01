@@ -1,0 +1,5 @@
+Tenis, iki veya dört oyuncunun raket kullanarak topu karşılıklı oynattığı bir spordur.
+Maçlar tekler (singles) veya çiftler (doubles) formatında oynanır.
+Oyunun amacı topu rakibin sahasına, karşı tarafın geri döndüremeyeceği şekilde vurmaktır.
+Tenis kortları farklı zeminlerde olabilir: çim, toprak ve sert zemin en yaygın türlerdir.
+Her set 6 oyun üzerinden oynanır, maçlar genellikle 2 veya 3 set kazanma esasına göre belirlenir.

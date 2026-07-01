@@ -1,0 +1,5 @@
+Teniste sayım 0, 15, 30, 40 ve oyun şeklinde ilerler.
+Her iki oyuncu da 40 sayısına ulaşırsa buna "deuce" denir.
+Deuce durumunda bir oyuncu üst üste iki sayı kazanarak oyunu almalıdır.
+Servis, her oyunun başında diagonal karşı kareye atılır ve iki hak tanınır.
+Topun çizgilere değmesi sayılır, dışarı çıkması ise rakibe sayı kazandırır.
