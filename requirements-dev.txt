@@ -1,0 +1,2 @@
+# Python 3.11+ ile uyumlu güvenli birim testleri için.
+pytest>=7.4,<9

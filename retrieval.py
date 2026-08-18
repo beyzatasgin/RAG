@@ -1,24 +1,13 @@
 import sqlite3
 import json
-import numpy as np
-from foundry_local_sdk import Configuration, FoundryLocalManager
-
-def cosine_similarity(vec1, vec2):
-    v1 = np.array(vec1)
-    v2 = np.array(vec2)
-    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+from retrieval_utils import cosine_similarity, hybrid_score, keyword_score
 
 def get_manager():
+    from foundry_local_sdk import Configuration, FoundryLocalManager
+
     config = Configuration(app_name="foundry_local_samples")
     FoundryLocalManager.initialize(config)
     return FoundryLocalManager.instance
-
-def keyword_score(query, content):
-    """Sorgudaki kelimelerin içerikte geçme oranını hesaplar."""
-    query_words = set(query.lower().split())
-    content_lower = content.lower()
-    matches = sum(1 for word in query_words if word in content_lower)
-    return matches / len(query_words) if query_words else 0
 
 def get_top_chunks(query, client, top_k=3):
     # Sorguyu embed et
@@ -40,7 +29,7 @@ def get_top_chunks(query, client, top_k=3):
         doc_vec = json.loads(embedding_json)
         semantic = cosine_similarity(query_vec, doc_vec)
         keyword = keyword_score(query, content)
-        hybrid = 0.7 * semantic + 0.3 * keyword
+        hybrid = hybrid_score(semantic, keyword)
         scored.append((hybrid, source, content))
 
     scored.sort(key=lambda x: x[0], reverse=True)

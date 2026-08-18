@@ -1,6 +1,8 @@
 # 🎾 Yerel RAG Asistanı — Microsoft Foundry Local
 
-Microsoft Foundry Local kullanarak tamamen çevrimdışı çalışan bir tenis bilgi asistanı. RAG (Retrieval-Augmented Generation) mimarisiyle yerel bir LLM'i birleştirerek internet bağlantısı gerektirmeden dokümanlara dayalı cevaplar üretiyor.
+Microsoft Foundry Local ile tamamen yerel çalışacak bir tenis bilgi asistanının geliştirme projesi. Mevcut aşama; yerel embedding, SQLite depolama ve hibrit retrieval prototipini içerir. Grounded prompt, yerel LLM ile cevap üretimi ve kaynaklı kullanıcı arayüzü sonraki aşamalarda eklenecektir.
+
+> Aşağıdaki ekran görüntüleri tamamlanması hedeflenen kullanıcı arayüzünü göstermektedir; Streamlit arayüzü henüz bu depoda uygulanmamıştır.
 
 <img width="844" height="574" alt="image" src="https://github.com/user-attachments/assets/3f64129d-ae16-4e88-ba3e-a56c29098239" />
 <img width="914" height="418" alt="image" src="https://github.com/user-attachments/assets/43bdf5f5-b32d-4311-b073-e7e3f4e6194f" />
@@ -15,7 +17,7 @@ RAG (Retrieval-Augmented Generation), büyük dil modellerini harici bilgi kayna
 2. **Augment** — Bu parçaları modele bağlam olarak ekle
 3. **Generate** — Model bağlamı kullanarak doğru cevabı üretsin
 
-Bu projede tüm bu işlemler internet bağlantısı olmadan, yerel makinede çalışır.
+Bu projede retrieval adımı yerel olarak prototiplenmiştir. Augment ve Generate adımları henüz ana uygulama akışına eklenmemiştir.
 
 ---
 
@@ -29,12 +31,12 @@ Hibrit Arama: %70 Semantic (cosine similarity) + %30 Keyword
 ↓
 SQLite'tan En Yakın 3-5 Chunk
 ↓
-Augmented Prompt → Yerel LLM (qwen3-1.7b, Foundry Local)
+Augmented Prompt → Yerel LLM (sonraki aşama)
 ↓
-Kaynak Gösterimli Cevap
+Kaynak Gösterimli Cevap (sonraki aşama)
 
 ### Hibrit Arama Neden?
-Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örneğin "teniste vuruşlar" gibi kısa bir sorguda embedding tek başına doğru chunk'ları getiremiyor. Bu yüzden keyword eşleşmesini de (Türkçe çekim ekleri için stem matching dahil) %30 ağırlıkla birleştirdik.
+Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örneğin "teniste vuruşlar" gibi kısa bir sorguda embedding tek başına doğru chunk'ları getiremiyor. Bu yüzden basit keyword eşleşmesini de %30 ağırlıkla birleştirdik.
 
 ---
 
@@ -44,8 +46,8 @@ Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örn
 |-----------|---------------|
 | Microsoft Foundry Local SDK (WinML) | Çevrimdışı LLM ve embedding modeli çalıştırma |
 | qwen3-embedding-0.6b | Metin embedding modeli (1024 boyutlu vektör) |
-| qwen3-1.7b | Soru-cevap için yerel chat modeli |
-| Streamlit | Web tabanlı sohbet arayüzü |
+| qwen3-1.7b | Sonraki aşamada soru-cevap için hedeflenen yerel chat modeli |
+| Streamlit | Sonraki aşamada eklenecek web tabanlı sohbet arayüzü |
 | SQLite | Chunk'ları ve embedding vektörlerini saklama |
 | NumPy | Cosine similarity hesabı |
 | Python 3.13 | Ana geliştirme dili |
@@ -67,7 +69,10 @@ git clone https://github.com/beyzatasgin/RAG.git
 cd RAG
 
 # 2. Bağımlılıkları kur
-pip install foundry-local-sdk-winml openai numpy streamlit
+pip install -r requirements.txt
+
+# Yalnızca güvenli otomatik testler için
+pip install -r requirements-dev.txt
 ```
 
 ---
@@ -75,10 +80,11 @@ pip install foundry-local-sdk-winml openai numpy streamlit
 
 ```
 foundry-rag-project/
-├── app_ui.py            # Streamlit web arayüzü (ana uygulama)
-├── main.py              # CLI tabanlı soru-cevap döngüsü
+├── main.py              # CLI tabanlı retrieval döngüsü
 ├── ingest.py            # Dokümanları chunk'layıp embed eder, SQLite'a kaydeder
 ├── retrieval.py         # Hibrit benzerlik araması (semantic + keyword)
+├── retrieval_utils.py   # Model ve veritabanından bağımsız skor fonksiyonları
+├── tests/               # Yan etkisiz otomatik testler
 ├── embedding_test.py    # Embedding ve cosine similarity deneyi (1. hafta)
 ├── sqlite_test.py       # SQLite tablo oluşturma ve CRUD testi (1. hafta)
 ├── app.py               # İlk Foundry Local model testi (1. hafta)
@@ -89,7 +95,9 @@ foundry-rag-project/
 │   ├── tenis_kurallari.txt
 │   ├── grand_slam.txt
 │   └── efsane_oyuncular.txt
-└── requirements.txt     # Bağımlılıklar
+├── requirements.txt     # Uygulama bağımlılıkları
+└── requirements-dev.txt # Otomatik test bağımlılıkları
+```
 ---
 
 ##  Kullanım
@@ -100,16 +108,25 @@ python ingest.py
 ```
 Bu komut `data/` klasöründeki tüm `.txt` dosyalarını okur, chunk'lara böler, embedding üretir ve `documents.db`'ye kaydeder.
 
-### 2. Web arayüzünü başlat
-```bash
-streamlit run app_ui.py
-```
-Tarayıcıda `http://localhost:8501` adresinde sohbet arayüzü açılır.
+> **Dikkat:** `ingest.py`, mevcut `documents` tablosunu silip yeniden oluşturur. Mevcut verileri korumak istiyorsanız bu komutu çalıştırmadan önce veritabanını yedekleyin.
 
-### 3. CLI arayüzü (alternatif)
+### 2. CLI retrieval prototipi
 ```bash
 python main.py
 ```
+
+Bu komut ilgili doküman parçalarını ve kaynak dosyalarını listeler; henüz LLM cevabı üretmez.
+
+### 3. Güvenli otomatik testler
+```powershell
+python -m pytest tests -p no:cacheprovider -q
+```
+
+Bu testler model başlatmaz, ağ kullanmaz ve `documents.db` dosyasını açmaz. `app.py`, `embedding_test.py`, `retrieval.py`, `ingest.py` ve `sqlite_test.py` ise manuel/model entegrasyon betikleridir; model indirebilir veya kalıcı veriyi değiştirebilir ve otomatik test komutuna dahil değildir.
+
+### 4. Web arayüzü
+
+Streamlit arayüzü henüz uygulanmamıştır. `app_ui.py` ve kaynaklı grounded cevap akışı sonraki geliştirme aşamasının kapsamındadır.
 
 ---
 
