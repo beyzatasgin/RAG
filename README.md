@@ -63,17 +63,32 @@ Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örn
 
 ### Adımlar
 
-```bash
+```powershell
 # 1. Repoyu klonla
 git clone https://github.com/beyzatasgin/RAG.git
 cd RAG
 
-# 2. Bağımlılıkları kur
-pip install -r requirements.txt
+# 2. İzole geliştirme ortamını oluştur ve etkinleştir
+& 'C:\Users\Beyza\AppData\Local\Programs\Python\Python313\python.exe' -m venv .venv
+.\.venv\Scripts\Activate.ps1
 
-# Yalnızca güvenli otomatik testler için
-pip install -r requirements-dev.txt
+# 3. Doğrudan runtime ve test bağımlılıklarını kur
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
 ```
+
+Tekrar üretilebilir, doğrulanmış Windows x64 / Python 3.13 ortamını kurmak için alternatif olarak:
+
+```powershell
+python -m pip install -r requirements-lock.txt
+```
+
+- `requirements.txt`, projenin doğrudan runtime bağımlılıklarını içerir.
+- `requirements-dev.txt`, yalnızca test bağımlılıklarını içerir.
+- `requirements-lock.txt`, bu Windows x64 / Python 3.13 ortamında doğrulanmış tam bağımlılık setidir.
+- Proje şu anda doğrudan `openai` import etmez; paket, Foundry Local SDK tarafından transitif bağımlılık olarak kurulur.
+- Aynı ortamda standart `foundry-local-sdk` varyantı ayrıca kurulmamalıdır.
+- Model dosyaları lock dosyasına dahil değildir. İlk model kurulumu ayrıca disk alanı ve internet gerektirir; normal testler model indirmez.
 
 ---
 ## Dosya Yapısı
@@ -96,7 +111,8 @@ foundry-rag-project/
 │   ├── grand_slam.txt
 │   └── efsane_oyuncular.txt
 ├── requirements.txt     # Uygulama bağımlılıkları
-└── requirements-dev.txt # Otomatik test bağımlılıkları
+├── requirements-dev.txt # Otomatik test bağımlılıkları
+└── requirements-lock.txt # Doğrulanmış tam bağımlılık seti
 ```
 ---
 

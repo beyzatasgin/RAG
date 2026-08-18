@@ -1,3 +1,2 @@
-foundry-local-sdk-winml
-openai
-numpy
+foundry-local-sdk-winml==1.2.4
+numpy==2.5.2
