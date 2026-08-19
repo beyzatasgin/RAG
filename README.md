@@ -99,7 +99,10 @@ foundry-rag-project/
 ├── ingest.py            # Dokümanları chunk'layıp embed eder, SQLite'a kaydeder
 ├── retrieval.py         # Hibrit benzerlik araması (semantic + keyword)
 ├── retrieval_utils.py   # Model ve veritabanından bağımsız skor fonksiyonları
+├── foundry_runtime.py   # Foundry Local model yaşam döngüsü katmanı
 ├── tests/               # Yan etkisiz otomatik testler
+│   ├── test_foundry_runtime.py
+│   └── test_retrieval_utils.py
 ├── embedding_test.py    # Embedding ve cosine similarity deneyi (1. hafta)
 ├── sqlite_test.py       # SQLite tablo oluşturma ve CRUD testi (1. hafta)
 ├── app.py               # İlk Foundry Local model testi (1. hafta)
@@ -143,6 +146,12 @@ Bu testler model başlatmaz, ağ kullanmaz ve `documents.db` dosyasını açmaz.
 ### 4. Web arayüzü
 
 Streamlit arayüzü henüz uygulanmamıştır. `app_ui.py` ve kaynaklı grounded cevap akışı sonraki geliştirme aşamasının kapsamındadır.
+
+### Foundry runtime katmanı
+
+`foundry_runtime.py`, Foundry Local manager, model, client ve cleanup yaşam döngüsünü merkezileştirir. Varsayılan davranış model indirmeyi kendiliğinden yapmaz; ilk kurulum indirmesi ileride açık bir komut veya akışla etkinleştirilecektir. Bu aşamadaki otomatik testler fake model ve manager kullanır, gerçek runtime'ı initialize etmez ve model indirmez. Mevcut uygulama betikleri henüz bu katmana taşınmamıştır.
+
+> Foundry Local manager process-global bir singleton'dır. Aynı Python process'i içinde ilk initialization config'i geçerlidir; sonraki wrapper nesneleri mevcut manager'ı yeniden kullanır ve onu yeniden yapılandırmaz. Uygulama normalde tek `FoundryRuntime` nesnesi kullanmalıdır.
 
 ---
 
