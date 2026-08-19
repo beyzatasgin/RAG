@@ -141,7 +141,7 @@ Bu komut ilgili doküman parçalarını ve kaynak dosyalarını listeler; henüz
 python -m pytest tests -p no:cacheprovider -q
 ```
 
-Bu testler model başlatmaz, ağ kullanmaz ve `documents.db` dosyasını açmaz. `app.py`, `embedding_test.py`, `retrieval.py`, `ingest.py` ve `sqlite_test.py` ise manuel/model entegrasyon betikleridir; model indirebilir veya kalıcı veriyi değiştirebilir ve otomatik test komutuna dahil değildir.
+Bu testler model başlatmaz, ağ kullanmaz ve `documents.db` dosyasını açmaz. Gerçek model kullanan demo ve veri hazırlama betikleri otomatik test komutuna dahil değildir.
 
 ### 4. Web arayüzü
 
@@ -149,7 +149,16 @@ Streamlit arayüzü henüz uygulanmamıştır. `app_ui.py` ve kaynaklı grounded
 
 ### Foundry runtime katmanı
 
-`foundry_runtime.py`, Foundry Local manager, model, client ve cleanup yaşam döngüsünü merkezileştirir. Varsayılan davranış model indirmeyi kendiliğinden yapmaz; ilk kurulum indirmesi ileride açık bir komut veya akışla etkinleştirilecektir. Bu aşamadaki otomatik testler fake model ve manager kullanır, gerçek runtime'ı initialize etmez ve model indirmez. Mevcut uygulama betikleri henüz bu katmana taşınmamıştır.
+`foundry_runtime.py`, Foundry Local manager, model, client ve cleanup yaşam döngüsünü merkezileştirir. Varsayılan davranış model indirmeyi kendiliğinden yapmaz. İndirme ancak CLI'da `--allow-download` açıkça verilirse mümkündür. Otomatik testler fake model ve manager kullanır; gerçek runtime'ı initialize etmez.
+
+Embedding ve chat smoke demoları varsayılan olarak offline çalışır:
+
+```powershell
+python embedding_test.py --model-cache-dir 'C:\Users\Beyza\.foundry_local_samples\cache\models' --app-data-dir 'C:\Users\Beyza\.local-rag-assistant' --logs-dir 'C:\Users\Beyza\.local-rag-assistant\logs'
+python app.py --model-cache-dir 'C:\Users\Beyza\.foundry_local_samples\cache\models' --app-data-dir 'C:\Users\Beyza\.local-rag-assistant' --logs-dir 'C:\Users\Beyza\.local-rag-assistant\logs'
+```
+
+Shared cache kullanımı açık bir opt-in'dir; kullanıcıya özel yol kaynak kodda varsayılan değildir. Foundry SDK katalog metadata'sını güncelleyebileceği için aynı cache'in farklı SDK sürümleriyle veya eşzamanlı uygulamalarla kullanılması önerilmez. Normal uygulama tek `local-rag-assistant` app adı ve tek runtime yaşam döngüsü kullanır.
 
 > Foundry Local manager process-global bir singleton'dır. Aynı Python process'i içinde ilk initialization config'i geçerlidir; sonraki wrapper nesneleri mevcut manager'ı yeniden kullanır ve onu yeniden yapılandırmaz. Uygulama normalde tek `FoundryRuntime` nesnesi kullanmalıdır.
 

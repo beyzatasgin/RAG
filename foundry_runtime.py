@@ -45,6 +45,9 @@ class FoundryRuntimeConfig:
     app_name: str = "foundry_local_samples"
     embedding_model_alias: str = "qwen3-embedding-0.6b"
     chat_model_alias: str = "qwen3-1.7b"
+    app_data_dir: str | None = None
+    model_cache_dir: str | None = None
+    logs_dir: str | None = None
 
     def __post_init__(self) -> None:
         values = {
@@ -55,6 +58,17 @@ class FoundryRuntimeConfig:
         for field_name, value in values.items():
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} boş olmamalıdır.")
+
+        optional_paths = {
+            "app_data_dir": self.app_data_dir,
+            "model_cache_dir": self.model_cache_dir,
+            "logs_dir": self.logs_dir,
+        }
+        for field_name, value in optional_paths.items():
+            if value is not None and (
+                not isinstance(value, str) or not value.strip()
+            ):
+                raise ValueError(f"{field_name} boş olmamalıdır; None kullanın.")
 
 
 def _load_sdk() -> tuple[type[Any], type[Any]]:
@@ -114,7 +128,12 @@ class FoundryRuntime:
 
         try:
             configuration_type, manager_type = self._sdk_loader()
-            configuration = configuration_type(app_name=self.config.app_name)
+            configuration_values = {"app_name": self.config.app_name}
+            for field_name in ("app_data_dir", "model_cache_dir", "logs_dir"):
+                value = getattr(self.config, field_name)
+                if value is not None:
+                    configuration_values[field_name] = value
+            configuration = configuration_type(**configuration_values)
             if getattr(manager_type, "instance", None) is None:
                 manager_type.initialize(configuration)
             manager = manager_type.instance

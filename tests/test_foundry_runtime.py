@@ -19,8 +19,9 @@ from foundry_runtime import (
 
 
 class FakeConfiguration:
-    def __init__(self, app_name):
+    def __init__(self, app_name, **kwargs):
         self.app_name = app_name
+        self.kwargs = kwargs
 
 
 class FakeModel:
@@ -127,6 +128,9 @@ def make_sdk(
         ("app_name", {"app_name": " "}),
         ("embedding_model_alias", {"embedding_model_alias": ""}),
         ("chat_model_alias", {"chat_model_alias": ""}),
+        ("app_data_dir", {"app_data_dir": " "}),
+        ("model_cache_dir", {"model_cache_dir": ""}),
+        ("logs_dir", {"logs_dir": "\t"}),
     ],
 )
 def test_config_rejects_empty_values(field, kwargs):
@@ -160,6 +164,32 @@ def test_initialize_is_idempotent():
 
     assert manager_type.initialize_calls == 1
     assert runtime.is_initialized
+
+
+def test_initialize_forwards_explicit_paths_to_configuration():
+    _, manager_type, loader = make_sdk()
+    config = FoundryRuntimeConfig(
+        app_data_dir="app-data",
+        model_cache_dir="shared-cache",
+        logs_dir="logs",
+    )
+
+    FoundryRuntime(config, loader).initialize()
+
+    created = manager_type.configurations[0]
+    assert created.kwargs == {
+        "app_data_dir": "app-data",
+        "model_cache_dir": "shared-cache",
+        "logs_dir": "logs",
+    }
+
+
+def test_initialize_omits_none_paths_to_preserve_sdk_defaults():
+    _, manager_type, loader = make_sdk()
+
+    FoundryRuntime(sdk_loader=loader).initialize()
+
+    assert manager_type.configurations[0].kwargs == {}
 
 
 def test_initialize_error_is_chained():
