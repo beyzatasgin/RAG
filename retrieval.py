@@ -1,78 +1,89 @@
-import sqlite3
-import json
-import numpy as np
-from foundry_local_sdk import Configuration, FoundryLocalManager
+"""Normalize runtime DB üzerinde semantic/hybrid retrieval CLI."""
 
-def cosine_similarity(vec1, vec2):
-    v1 = np.array(vec1)
-    v2 = np.array(vec2)
-    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+from __future__ import annotations
 
-def get_manager():
-    config = Configuration(app_name="foundry_local_samples")
-    FoundryLocalManager.initialize(config)
-    return FoundryLocalManager.instance
+import argparse
+import sys
+from collections.abc import Sequence
 
-def keyword_score(query, content):
-    """Sorgudaki kelimelerin içerikte geçme oranını hesaplar."""
-    query_words = set(query.lower().split())
-    content_lower = content.lower()
-    matches = sum(1 for word in query_words if word in content_lower)
-    return matches / len(query_words) if query_words else 0
+from foundry_runtime import FoundryRuntime, FoundryRuntimeConfig
+from retriever import Retriever
+from storage import Storage
 
-def get_top_chunks(query, client, top_k=3):
-    # Sorguyu embed et
-    result = client.generate_embedding(query)
-    query_vec = result.data[0].embedding
 
-    # SQLite'tan tüm chunk'ları çek
-    conn = sqlite3.connect("documents.db")
-    cursor = conn.cursor()
-    rows = cursor.execute(
-        "SELECT id, source, content, embedding FROM documents"
-    ).fetchall()
-    conn.close()
+def get_top_chunks(
+    query,
+    client,
+    top_k=3,
+    *,
+    db_path="runtime_data/rag.db",
+    model_alias="qwen3-embedding-0.6b",
+    min_score=None,
+):
+    """Eski çağrı noktaları için yeni retriever'a ince uyumluluk köprüsü."""
+    return Retriever(Storage(db_path), client, model_alias).search(
+        query, top_k=top_k, min_score=min_score
+    )
 
-    # Hibrit skor: %70 semantic + %30 keyword
-    scored = []
-    for row in rows:
-        doc_id, source, content, embedding_json = row
-        doc_vec = json.loads(embedding_json)
-        semantic = cosine_similarity(query_vec, doc_vec)
-        keyword = keyword_score(query, content)
-        hybrid = 0.7 * semantic + 0.3 * keyword
-        scored.append((hybrid, source, content))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
-    return scored[:top_k]
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--db-path", default="runtime_data/rag.db")
+    parser.add_argument("--query", required=True)
+    parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--min-score", type=float)
+    parser.add_argument("--semantic-weight", type=float, default=0.7)
+    parser.add_argument("--keyword-weight", type=float, default=0.3)
+    parser.add_argument("--model-cache-dir")
+    parser.add_argument("--app-data-dir")
+    parser.add_argument("--logs-dir")
+    parser.add_argument("--allow-download", action="store_true")
+    parser.add_argument("--debug", action="store_true")
+    return parser
 
-def main():
-    print("=== Retrieval Testi ===\n")
 
-    manager = get_manager()
-    model = manager.catalog.get_model("qwen3-embedding-0.6b")
-    model.download(lambda p: print(f"\rModel indiriliyor: {p:.1f}%", end=""))
-    print()
-    model.load()
-    client = model.get_embedding_client()
-    print("✓ Embedding modeli hazır.\n")
+def search_with_runtime(args: argparse.Namespace):
+    config = FoundryRuntimeConfig(
+        app_name="local-rag-assistant",
+        app_data_dir=args.app_data_dir,
+        model_cache_dir=args.model_cache_dir,
+        logs_dir=args.logs_dir,
+    )
+    storage = Storage(args.db_path)
+    storage.initialize_schema()
+    with FoundryRuntime(config) as runtime:
+        client = runtime.get_embedding_client(allow_download=args.allow_download)
+        return Retriever(storage, client, config.embedding_model_alias).search(
+            args.query,
+            top_k=args.top_k,
+            min_score=args.min_score,
+            semantic_weight=args.semantic_weight,
+            keyword_weight=args.keyword_weight,
+        )
 
-    queries = [
-        "Wimbledon hangi zeminde oynanır?",
-        "Forehand ve backhand nedir?",
-        "Djokovic kaç Grand Slam kazandı?",
-        "Deuce kuralı nedir?",
-        "teniste vuruşlar",
-    ]
 
-    for query in queries:
-        print(f"Sorgu: '{query}'")
-        results = get_top_chunks(query, client, top_k=2)
-        for i, (score, source, content) in enumerate(results):
-            print(f"  [{i+1}] ({score:.4f}) [{source}] {content[:70]}...")
-        print()
+def run(args: argparse.Namespace) -> int:
+    results = search_with_runtime(args)
+    for rank, result in enumerate(results, start=1):
+        print(f"[{rank}] source={result.source} chunk={result.chunk_index}")
+        if args.debug:
+            print(
+                f"semantic={result.semantic_score:.6f} "
+                f"keyword={result.keyword_score:.6f} "
+                f"combined={result.combined_score:.6f}"
+            )
+        print(result.content)
+    print(f"result_count={len(results)}")
+    return 0
 
-    model.unload()
+
+def main(argv: Sequence[str] | None = None) -> int:
+    try:
+        return run(build_parser().parse_args(argv))
+    except Exception as exc:
+        print(f"Retrieval başarısız: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

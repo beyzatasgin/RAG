@@ -1,58 +1,100 @@
+"""Foundry Local embedding modelini güvenli, varsayılan-offline çalıştır."""
+
+from __future__ import annotations
+
+import argparse
+import math
+import sys
+from collections.abc import Sequence
+from typing import Any, Callable
+
 import numpy as np
-from foundry_local_sdk import Configuration, FoundryLocalManager
 
-def cosine_similarity(vec1, vec2):
-    v1 = np.array(vec1)
-    v2 = np.array(vec2)
-    return np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+from foundry_runtime import FoundryRuntime, FoundryRuntimeConfig
 
-def main():
-    config = Configuration(app_name="foundry_local_samples")
-    FoundryLocalManager.initialize(config)
-    manager = FoundryLocalManager.instance
 
-    # Embedding modelini indir ve yükle
-    model = manager.catalog.get_model("qwen3-embedding-0.6b")
-    model.download(lambda p: print(f"\rİndiriliyor: {p:.1f}%", end=""))
-    print()
-    model.load()
-    print("Embedding modeli hazır.\n")
+SENTENCES = [
+    "Python programlama dili çok kullanışlıdır.",
+    "Python yazılım geliştirmede popüler bir dil.",
+    "Bugün hava çok güzel ve güneşli.",
+    "Yapay zeka ve makine öğrenmesi geleceği şekillendiriyor.",
+]
+QUERY = "Python ile kod yazmayı seviyorum."
 
-    client = model.get_embedding_client()
 
-    # Test cümleleri
-    sentences = [
-        "Python programlama dili çok kullanışlıdır.",
-        "Python yazılım geliştirmede popüler bir dil.",
-        "Bugün hava çok güzel ve güneşli.",
-        "Yapay zeka ve makine öğrenmesi geleceği şekillendiriyor.",
-    ]
+def cosine_similarity(vec1: Sequence[float], vec2: Sequence[float]) -> float:
+    """İki vektör arasındaki cosine benzerliğini hesapla."""
+    first = np.asarray(vec1, dtype=float)
+    second = np.asarray(vec2, dtype=float)
+    denominator = np.linalg.norm(first) * np.linalg.norm(second)
+    if denominator == 0:
+        raise ValueError("Cosine similarity sıfır vektörle hesaplanamaz.")
+    return float(np.dot(first, second) / denominator)
 
-    print("Embedding'ler üretiliyor...")
-    embeddings = []
-    for s in sentences:
-        result = client.generate_embedding(s)
-        embeddings.append(result.data[0].embedding)
-        print(f"  ✓ '{s[:40]}...' → {len(result.data[0].embedding)} boyutlu vektör")
 
-    # Sorgu
-    query = "Python ile kod yazmayı seviyorum."
-    print(f"\nSorgu: '{query}'")
-    query_result = client.generate_embedding(query)
-    query_vec = query_result.data[0].embedding
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--model-cache-dir")
+    parser.add_argument("--app-data-dir")
+    parser.add_argument("--logs-dir")
+    parser.add_argument(
+        "--allow-download",
+        action="store_true",
+        help="Model cache içinde değilse indirmeye açıkça izin ver.",
+    )
+    return parser
 
-    # Benzerlik hesapla
-    print("\nBenzerlik skorları:")
-    scores = []
-    for i, s in enumerate(sentences):
-        score = cosine_similarity(query_vec, embeddings[i])
-        scores.append((score, s))
-        print(f"  {score:.4f} → '{s}'")
 
-    best = max(scores, key=lambda x: x[0])
-    print(f"\nEn benzer cümle: '{best[1]}' (skor: {best[0]:.4f})")
+def _embedding(client: Any, text: str) -> list[float]:
+    result = client.generate_embedding(text)
+    return list(result.data[0].embedding)
 
-    model.unload()
+
+def run_demo(
+    args: argparse.Namespace,
+    runtime_factory: Callable[[FoundryRuntimeConfig], Any] = FoundryRuntime,
+) -> None:
+    config = FoundryRuntimeConfig(
+        app_name="local-rag-assistant",
+        app_data_dir=args.app_data_dir,
+        model_cache_dir=args.model_cache_dir,
+        logs_dir=args.logs_dir,
+    )
+
+    with runtime_factory(config) as runtime:
+        client = runtime.get_embedding_client(allow_download=args.allow_download)
+        embeddings = [_embedding(client, sentence) for sentence in SENTENCES]
+        query_vector = _embedding(client, QUERY)
+
+    vectors = [*embeddings, query_vector]
+    if not vectors or not vectors[0]:
+        raise RuntimeError("Embedding servisi boş vektör döndürdü.")
+    dimension = len(vectors[0])
+    if any(len(vector) != dimension for vector in vectors):
+        raise RuntimeError("Embedding boyutları birbiriyle uyuşmuyor.")
+
+    all_finite = all(math.isfinite(value) for vector in vectors for value in vector)
+    similarity = cosine_similarity(query_vector, embeddings[0])
+    print(f"embedding_count={len(vectors)}")
+    print(f"embedding_dimension={dimension}")
+    print(f"all_values_finite={str(all_finite).lower()}")
+    print(f"sample_cosine_similarity={similarity:.6f}")
+    if not all_finite:
+        raise RuntimeError("Embedding sonucu finite olmayan değer içeriyor.")
+
+
+def main(
+    argv: Sequence[str] | None = None,
+    runtime_factory: Callable[[FoundryRuntimeConfig], Any] = FoundryRuntime,
+) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        run_demo(args, runtime_factory)
+    except Exception as exc:
+        print(f"Embedding smoke başarısız: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

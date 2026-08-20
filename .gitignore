@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test ve coverage çıktıları
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Sanal ortamlar
+.venv/
+venv/
+
+# Ortam ve gizli ayarlar
+.env
+.env.*
+!.env.example
+
+# IDE kullanıcı dosyaları (proje/solution dosyaları korunur)
+.idea/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+
+# SQLite çalışma zamanı geçici dosyaları
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Gelecekteki kullanıcı yüklemeleri ve çalışma zamanı artifactleri
+uploads/
+artifacts/
+runtime_data/
+recovery/
+runtime_data/
