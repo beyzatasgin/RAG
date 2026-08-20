@@ -143,26 +143,6 @@ Hedef ortam Windows x64 ve Python 3.13'tür. Proje doğrudan `openai` import etm
 `foundry-local-sdk-winml` kullanılır; standart `foundry-local-sdk` varyantını aynı
 ortama ayrıca kurmayın.
 
-## Başlangıçtaki Proje Durumu
-
-Proje başlangıçta değerli bir prototip ve öğrenme zemini sunuyordu:
-
-- yerel embedding denemesi ve beş tenis dokümanı vardı;
-- basit bir SQLite tablosu kullanılıyordu;
-- `%70 semantic / %30 keyword` ağırlıklı retrieval prototipi bulunuyordu;
-- terminalde en ilgili chunk'lar gösterilebiliyordu.
-
-Final uygulama için tamamlanması gereken noktalar da vardı:
-
-- gerçek grounded LLM cevabı ve doğrulanmış citation akışı yoktu;
-- README Streamlit arayüzünü anlatmasına rağmen ilgili uygulama dosyası mevcut değildi;
-- otomatik test altyapısı yoktu;
-- eski ingestion yaklaşımı tabloyu silerek yeniden oluşturuyordu;
-- dependency sürümleri sabitlenmemişti;
-- README, prototip ile hedeflenen final durumu yeterince ayırmıyordu.
-
-Bu durum önceki çalışmayı küçümsemek yerine, dört haftalık kontrollü geliştirme
-sürecinin başlangıç noktası olarak ele alındı.
 
 ## Dört Haftalık Geliştirme Süreci
 
@@ -576,16 +556,6 @@ Bu commitlerin tamamı repository Git geçmişinde doğrulanmıştır.
 - Shared cache farklı SDK sürümleri/eşzamanlı uygulamalarla güvenli kabul edilmez.
 - Production ve çok kullanıcılı deployment hedeflenmemiştir.
 
-## Gelecek Geliştirmeler
-
-- Daha güçlü ve uygun bir yerel chat modeli
-- Reranking ve `min_score` threshold calibration
-- PDF ve DOCX belge desteği
-- SQLite vector extension veya gerçek vector index
-- Answer validation ve ikinci-pass verifier
-- Conversation history
-- Daha büyük ve farklı alanlardan evaluation datasetleri
-- Ağ izolasyonu için tekrarlanabilir manuel/CI doğrulama prosedürü
 
 ## Kaynaklar
 
