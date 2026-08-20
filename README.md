@@ -1,4 +1,6 @@
 # Local RAG AI Assistant with Microsoft Foundry Local
+<img width="701" height="535" alt="image" src="https://github.com/user-attachments/assets/15ed0c19-6f26-4d13-bc7a-8dbe36f24a6e" />
+<img width="726" height="777" alt="image" src="https://github.com/user-attachments/assets/b8289876-1531-440b-8137-c76ee806db11" />
 
 Microsoft Foundry Local kullanan, belgeler üzerinde soru-cevap yapabilen tamamen yerel
 bir RAG (Retrieval-Augmented Generation) uygulamasıdır. Dokümanlar, chunk'lar,
