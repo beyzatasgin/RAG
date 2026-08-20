@@ -1,6 +1,6 @@
 # 🎾 Yerel RAG Asistanı — Microsoft Foundry Local
 
-Microsoft Foundry Local ile tamamen yerel çalışacak bir tenis bilgi asistanının geliştirme projesi. Hafta 2 sonunda güvenli ve idempotent doküman ingestion, normalize SQLite depolama ve semantic/hybrid retrieval uygulanmıştır. Grounded prompt, yerel LLM ile cevap üretimi ve kaynaklı kullanıcı arayüzü henüz yoktur; generation akışı Hafta 3 kapsamındadır.
+Microsoft Foundry Local ile tamamen yerel çalışan bir tenis bilgi asistanı. Hafta 3 sonunda güvenli ingestion, normalize SQLite depolama, semantic/hybrid retrieval, grounded prompt, yerel cevap üretimi ve doğrulanmış kaynak gösterimi uygulanmıştır. Streamlit arayüzü Hafta 4 kapsamındadır.
 
 > Aşağıdaki ekran görüntüleri tamamlanması hedeflenen kullanıcı arayüzünü göstermektedir; Streamlit arayüzü henüz bu depoda uygulanmamıştır.
 
@@ -17,7 +17,7 @@ RAG (Retrieval-Augmented Generation), büyük dil modellerini harici bilgi kayna
 2. **Augment** — Bu parçaları modele bağlam olarak ekle
 3. **Generate** — Model bağlamı kullanarak doğru cevabı üretsin
 
-Bu projede retrieval adımı yerel olarak prototiplenmiştir. Augment ve Generate adımları henüz ana uygulama akışına eklenmemiştir.
+Bu projede Retrieve, Augment ve Generate adımlarının tamamı yerel ana uygulama akışındadır.
 
 ---
 
@@ -31,9 +31,9 @@ Hibrit Arama: %70 Semantic (cosine similarity) + %30 Keyword
 ↓
 SQLite'tan En Yakın 3-5 Chunk
 ↓
-Augmented Prompt → Yerel LLM (sonraki aşama)
+Grounded Prompt → Microsoft Foundry Local LLM
 ↓
-Kaynak Gösterimli Cevap (sonraki aşama)
+Doğrulanmış Kaynak Listeli Cevap
 
 ### Hibrit Arama Neden?
 Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örneğin "teniste vuruşlar" gibi kısa bir sorguda embedding tek başına doğru chunk'ları getiremiyor. Bu yüzden basit keyword eşleşmesini de %30 ağırlıkla birleştirdik.
@@ -46,8 +46,8 @@ Sadece semantic (embedding) araması kısa sorgularda yetersiz kalabiliyor. Örn
 |-----------|---------------|
 | Microsoft Foundry Local SDK (WinML) | Çevrimdışı LLM ve embedding modeli çalıştırma |
 | qwen3-embedding-0.6b | Metin embedding modeli (1024 boyutlu vektör) |
-| qwen3-1.7b | Sonraki aşamada soru-cevap için hedeflenen yerel chat modeli |
-| Streamlit | Sonraki aşamada eklenecek web tabanlı sohbet arayüzü |
+| qwen3-1.7b | Grounded soru-cevap için yerel chat modeli |
+| Streamlit | Hafta 4'te eklenecek web tabanlı sohbet arayüzü |
 | SQLite | Chunk'ları ve embedding vektörlerini saklama |
 | NumPy | Cosine similarity hesabı |
 | Python 3.13 | Ana geliştirme dili |
@@ -95,7 +95,10 @@ python -m pip install -r requirements-lock.txt
 
 ```
 foundry-rag-project/
-├── main.py              # CLI tabanlı retrieval döngüsü
+├── main.py              # Kaynak gösteren gerçek yerel RAG CLI
+├── prompt_builder.py    # Grounded prompt ve context bütçesi
+├── rag_service.py       # Retrieve → Augment → Generate orchestration
+├── citations.py         # Model citation etiketi doğrulama
 ├── ingest.py            # Dokümanları chunk'layıp embed eder, SQLite'a kaydeder
 ├── ingestion_service.py # İdempotent ingestion orchestration
 ├── chunking.py          # Deterministik karakter tabanlı chunking
@@ -140,12 +143,30 @@ Shared cache ile offline ingestion örneği:
 python ingest.py --db-path runtime_data/rag.db --model-cache-dir 'C:\Users\Beyza\.foundry_local_samples\cache\models' --app-data-dir 'C:\Users\Beyza\.local-rag-assistant' --logs-dir 'C:\Users\Beyza\.local-rag-assistant\logs'
 ```
 
-### 2. CLI retrieval prototipi
+### 2. Gerçek grounded RAG CLI
 ```powershell
-python retrieval.py --db-path runtime_data/rag.db --query "Grand Slam turnuvaları hangileridir?" --debug
+python main.py --db-path runtime_data/rag.db --question "Grand Slam turnuvaları hangileridir?" --top-k 3 --min-score 0.2 --model-cache-dir 'C:\Users\Beyza\.foundry_local_samples\cache\models' --app-data-dir 'C:\Users\Beyza\.local-rag-assistant' --logs-dir 'C:\Users\Beyza\.local-rag-assistant\logs' --debug
 ```
 
-Bu komut NumPy full scan ile ilgili doküman parçalarını ve gerçek kaynak metadata'sını listeler; henüz LLM cevabı üretmez.
+Komut cevabı ve uygulama metadata'sından doğrulanan `[K1]` kaynak listesini gösterir. Model indirme varsayılan olarak kapalıdır; yalnızca bilinçli bir ilk kurulumda `--allow-download` verilebilir. Shared cache'teki iki model indirildikten sonra normal kullanım çevrimdışıdır.
+
+Model cevapları hata yapabilir. Cevaptaki iddiaları ayrıca gösterilen kaynak dosyalarından kontrol edin. Web/Streamlit arayüzü henüz yoktur ve Hafta 4'te eklenecektir. Hafta 3 tasarımı için [docs/week-3.md](docs/week-3.md) belgesine bakın.
+
+#### Hafta 3 model sınırlaması
+
+RAG, hallucination riskini azaltır fakat tamamen ortadan kaldırmaz. Küçük yerel
+`qwen3-1.7b` modeli doğru belgeler getirilse bile ayrıntıları yanlış eşleyebilir ve
+cevap içinde her zaman `[K1]` biçiminde citation üretmeyebilir. Uygulamadaki
+“Kullanılan kaynaklar” bölümü model metninden değil, prompta giren gerçek retrieval
+metadata'sından oluşturulur. Model geçerli inline citation üretmezse CLI bunu açıkça
+belirtir; cevaba otomatik etiket eklemez. Kullanıcı model yanıtını listelenen kaynak
+metinleriyle kontrol etmelidir.
+
+Doğrulanmış Week 3 smoke çalışmasında retrieval ve yerel generation tamamlanmış,
+`grand_slam.txt` doğru kaynak olarak bulunmuş; buna karşın küçük model bir turnuva
+ayrıntısını yanlış eşlemiş ve inline citation üretmemiştir. Bu bilinen sınırlama
+gizlenmez. Daha büyük bir yerel model, answer validation veya ikinci-pass verification
+gelecekte değerlendirilebilir.
 
 ### 3. Güvenli otomatik testler
 ```powershell

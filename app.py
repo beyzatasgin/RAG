@@ -3,11 +3,15 @@
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from collections.abc import Sequence
 from typing import Any, Callable
 
+from chat_utils import (
+    collect_streaming_answer,
+    console_safe as _console_safe,
+    visible_answer as _visible_answer,
+)
 from foundry_runtime import FoundryRuntime, FoundryRuntimeConfig
 
 
@@ -27,17 +31,6 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _console_safe(text: str, encoding: str | None = None) -> str:
-    """Cevabı mevcut Windows konsol kodlamasında güvenle yazılabilir yap."""
-    encoding = encoding or getattr(sys.stdout, "encoding", None) or "utf-8"
-    return text.encode(encoding, errors="replace").decode(encoding)
-
-
-def _visible_answer(text: str) -> str:
-    """Modelin tamamlanmış düşünme bloğunu kullanıcı cevabından ayır."""
-    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
-
-
 def run_demo(
     args: argparse.Namespace,
     runtime_factory: Callable[[FoundryRuntimeConfig], Any] = FoundryRuntime,
@@ -50,21 +43,9 @@ def run_demo(
     )
     messages = [{"role": "user", "content": QUESTION}]
 
-    parts: list[str] = []
     with runtime_factory(config) as runtime:
         client = runtime.get_chat_client(allow_download=args.allow_download)
-        for chunk in client.complete_streaming_chat(messages):
-            choices = getattr(chunk, "choices", None)
-            if not choices:
-                continue
-            delta = getattr(choices[0], "delta", None)
-            content = getattr(delta, "content", None)
-            if content:
-                parts.append(content)
-
-    answer = _visible_answer("".join(parts))
-    if not answer:
-        raise RuntimeError("Chat servisi boş cevap döndürdü.")
+        answer = collect_streaming_answer(client, messages)
     print(f"answer={_console_safe(answer)}")
     return answer
 
