@@ -569,7 +569,3 @@ Aşağıdaki bağlantılar erişilebilirlik açısından doğrulanmıştır:
 Tech Community bağlantısı bu projenin ilham aldığı Microsoft Foundry Local RAG
 tutorial'ıdır. README bağlantıları çalışma zamanında çağrılmaz.
 
-## Lisans
-
-Repository'de henüz bir `LICENSE` dosyası bulunmamaktadır. Bir lisans seçilmeden proje
-için lisans adı veya kullanım hakkı varsayılmamalıdır.
