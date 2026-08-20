@@ -217,3 +217,107 @@ Farklı bir konuya geçmek için `data/` klasöründeki dosyaları değiştirip 
 **Beyza Taşgın** — Sakarya Üniversitesi Bilgisayar Mühendisliği  
 Microsoft Staj Projesi — Yaz 2026  
 
+---
+
+## Final proje rehberi
+
+### Özellikler ve dört haftalık gelişim
+
+- **Hafta 1:** Foundry Local SDK yaşam döngüsü, offline varsayılan ve güvenli test temeli
+- **Hafta 2:** İdempotent ingestion, normalize SQLite ve hybrid retrieval
+- **Hafta 3:** Grounded prompt, yerel chat generation ve doğrulanmış kaynaklar
+- **Hafta 4:** Streamlit UI, güvenli upload, evaluation, benchmark ve offline check
+
+```mermaid
+flowchart LR
+    UI[Streamlit / CLI] --> RAG[RAG service]
+    RAG --> E[Local embedding]
+    E --> S[(SQLite vector retrieval)]
+    S --> P[Grounded prompt]
+    P --> L[Foundry Local chat]
+    L --> A[Answer + verified sources]
+```
+
+### Ön koşullar ve kurulum
+
+- Windows x64, doğrulanmış Python 3.13, yeterli disk alanı ve yaklaşık 8 GiB RAM
+- `.venv` içinde `requirements-lock.txt` ile tekrar üretilebilir kurulum
+- İlk paket/model indirmesinde internet; cache hazır olduğunda normal kullanım offline
+
+```powershell
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements-lock.txt
+```
+
+Standart `foundry-local-sdk` ile WinML varyantını aynı ortama birlikte kurmayın.
+
+### Baştan sona kullanım
+
+```powershell
+# 1. Belgeleri indeksle
+python ingest.py --data-dir data --db-path runtime_data/rag.db --model-cache-dir '<shared-cache>'
+
+# 2. CLI RAG
+python main.py --db-path runtime_data/rag.db --question 'Wimbledon hangi zeminde oynanır?' --model-cache-dir '<shared-cache>'
+
+# 3. Streamlit UI
+python -m streamlit run app_ui.py --server.headless true --browser.gatherUsageStats false
+
+# 4. Retrieval evaluation
+python evaluate.py --db-path runtime_data/rag.db --model-cache-dir '<shared-cache>' --output runtime_data/evaluation-results.json
+
+# 5. Küçük benchmark
+python benchmark.py --db-path runtime_data/rag.db --model-cache-dir '<shared-cache>' --output runtime_data/benchmark-results.json
+
+# 6. Offline-readiness kontrolü
+python offline_check.py --db-path runtime_data/rag.db --model-cache-dir '<shared-cache>'
+
+# 7. Yan etkisiz testler
+python -m pytest tests -p no:cacheprovider -q
+```
+
+Upload hedefi `runtime_data/uploads/` dizinidir. Yalnızca UTF-8 `.txt`/`.md`, en
+fazla 5 MiB kabul edilir. Aynı adlı dosya atomik olarak güncellenir. Runtime verileri,
+uploadlar ve ölçüm JSON dosyaları Git tarafından ignore edilir.
+
+### Yapılandırma
+
+| Environment variable | Açıklama | Varsayılan |
+|---|---|---|
+| `RAG_DB_PATH` | Runtime SQLite yolu | `runtime_data/rag.db` |
+| `RAG_MODEL_CACHE_DIR` | Shared model cache | boş; kullanıcı seçer |
+| `RAG_APP_DATA_DIR` | Foundry uygulama verisi | SDK davranışı |
+| `RAG_LOGS_DIR` | Foundry log yolu | SDK davranışı |
+
+UI girdisi environment variable'dan, environment variable proje varsayılanından
+önceliklidir. API key veya cloud credential yoktur. UI model indirme başlatmaz.
+
+### Sorun giderme
+
+- **Disk:** Model ve pagefile için rahat boş alan bırakın; cache'i elle silmeyin.
+- **RAM/pagefile:** 8 GiB sistemde modeller ardışık yüklenir; diğer ağır uygulamaları kapatın.
+- **Missing model:** Shared cache yolunu doğrulayın; UI otomatik indirme yapmaz.
+- **Encoding:** Belgeleri UTF-8 kaydedin; Windows terminalinde UTF-8 kullanın.
+- **Cache:** Aynı shared cache'i farklı SDK sürümleriyle eşzamanlı kullanmayın.
+
+### Privacy ve Responsible AI
+
+Belge ve sorular yerel makinede işlenir; kullanıcı içeriği uygulama tarafından loglanmaz.
+RAG model doğruluğunu garanti etmez. “Kullanılan kaynaklar” retrieval metadata'sından
+gelir; model cevabını bu metinlerle kontrol edin. Tam offline davranışı için ağ adaptörü
+kapalı manuel test ayrıca yapılmalıdır.
+
+Detaylar: [mimari](docs/architecture.md), [evaluation](docs/evaluation.md),
+[offline doğrulama](docs/offline-verification.md), [demo](docs/demo-script.md) ve
+[sunum taslağı](docs/final-presentation-outline.md).
+
+### Resmî Microsoft referansları
+
+- [Microsoft Foundry Local belgeleri](https://learn.microsoft.com/azure/ai-foundry/foundry-local/)
+- [Foundry Local başlangıç rehberi](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started)
+- [Microsoft Foundry Local GitHub deposu](https://github.com/microsoft/Foundry-Local)
+
+Bu bağlantılar geliştirme referansıdır; uygulama normal runtime sırasında onları
+çağırmaz ve offline check README URL'lerini cloud bağımlılığı olarak sınıflandırmaz.
+
