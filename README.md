@@ -1,6 +1,6 @@
 # 🎾 Yerel RAG Asistanı — Microsoft Foundry Local
 
-Microsoft Foundry Local ile tamamen yerel çalışacak bir tenis bilgi asistanının geliştirme projesi. Mevcut aşama; yerel embedding, SQLite depolama ve hibrit retrieval prototipini içerir. Grounded prompt, yerel LLM ile cevap üretimi ve kaynaklı kullanıcı arayüzü sonraki aşamalarda eklenecektir.
+Microsoft Foundry Local ile tamamen yerel çalışacak bir tenis bilgi asistanının geliştirme projesi. Hafta 2 sonunda güvenli ve idempotent doküman ingestion, normalize SQLite depolama ve semantic/hybrid retrieval uygulanmıştır. Grounded prompt, yerel LLM ile cevap üretimi ve kaynaklı kullanıcı arayüzü henüz yoktur; generation akışı Hafta 3 kapsamındadır.
 
 > Aşağıdaki ekran görüntüleri tamamlanması hedeflenen kullanıcı arayüzünü göstermektedir; Streamlit arayüzü henüz bu depoda uygulanmamıştır.
 
@@ -97,6 +97,10 @@ python -m pip install -r requirements-lock.txt
 foundry-rag-project/
 ├── main.py              # CLI tabanlı retrieval döngüsü
 ├── ingest.py            # Dokümanları chunk'layıp embed eder, SQLite'a kaydeder
+├── ingestion_service.py # İdempotent ingestion orchestration
+├── chunking.py          # Deterministik karakter tabanlı chunking
+├── storage.py           # Normalize SQLite şeması ve transaction katmanı
+├── retriever.py         # Semantic/hybrid full-scan retrieval servisi
 ├── retrieval.py         # Hibrit benzerlik araması (semantic + keyword)
 ├── retrieval_utils.py   # Model ve veritabanından bağımsız skor fonksiyonları
 ├── foundry_runtime.py   # Foundry Local model yaşam döngüsü katmanı
@@ -106,7 +110,8 @@ foundry-rag-project/
 ├── embedding_test.py    # Embedding ve cosine similarity deneyi (1. hafta)
 ├── sqlite_test.py       # SQLite tablo oluşturma ve CRUD testi (1. hafta)
 ├── app.py               # İlk Foundry Local model testi (1. hafta)
-├── documents.db         # Chunk'ların ve embedding vektörlerinin saklandığı SQLite veritabanı
+├── documents.db         # Salt korunan legacy veritabanı
+├── runtime_data/        # Ignore edilen yeni runtime DB dizini
 ├── data/                # Knowledge base dokümanları (tenis)
 │   ├── tenis_temelleri.txt
 │   ├── tenis_teknikleri.txt
@@ -122,19 +127,25 @@ foundry-rag-project/
 ##  Kullanım
 
 ### 1. Dokümanları işle ve veritabanına kaydet
-```bash
-python ingest.py
+```powershell
+python ingest.py --data-dir data --db-path runtime_data/rag.db
 ```
-Bu komut `data/` klasöründeki tüm `.txt` dosyalarını okur, chunk'lara böler, embedding üretir ve `documents.db`'ye kaydeder.
+Bu komut `data/` klasöründeki `.txt` ve `.md` dosyalarını deterministik chunk'lara böler, embedding üretir ve normalize tablolara atomik olarak yazar. Aynı içerik ikinci çalıştırmada yeniden embed edilmez.
 
-> **Dikkat:** `ingest.py`, mevcut `documents` tablosunu silip yeniden oluşturur. Mevcut verileri korumak istiyorsanız bu komutu çalıştırmadan önce veritabanını yedekleyin.
+Legacy `documents.db` migrate edilmez veya değiştirilmez. Yeni varsayılan veritabanı `runtime_data/rag.db` dosyasıdır ve Git tarafından ignore edilir. Eksik kaynaklar varsayılan olarak korunur; silme yalnızca açık `--delete-missing` seçimiyle yapılır.
+
+Shared cache ile offline ingestion örneği:
+
+```powershell
+python ingest.py --db-path runtime_data/rag.db --model-cache-dir 'C:\Users\Beyza\.foundry_local_samples\cache\models' --app-data-dir 'C:\Users\Beyza\.local-rag-assistant' --logs-dir 'C:\Users\Beyza\.local-rag-assistant\logs'
+```
 
 ### 2. CLI retrieval prototipi
-```bash
-python main.py
+```powershell
+python retrieval.py --db-path runtime_data/rag.db --query "Grand Slam turnuvaları hangileridir?" --debug
 ```
 
-Bu komut ilgili doküman parçalarını ve kaynak dosyalarını listeler; henüz LLM cevabı üretmez.
+Bu komut NumPy full scan ile ilgili doküman parçalarını ve gerçek kaynak metadata'sını listeler; henüz LLM cevabı üretmez.
 
 ### 3. Güvenli otomatik testler
 ```powershell

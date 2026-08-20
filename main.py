@@ -1,37 +1,53 @@
-from foundry_local_sdk import Configuration, FoundryLocalManager
-from retrieval import get_top_chunks
+"""Week 2 interaktif retrieval CLI; henüz LLM cevabı üretmez."""
 
-def main():
-    print("Yerel RAG Asistanı başlatılıyor...\n")
+from __future__ import annotations
 
-    config = Configuration(app_name="foundry_local_samples")
-    FoundryLocalManager.initialize(config)
-    manager = FoundryLocalManager.instance
+import argparse
+from collections.abc import Sequence
 
-    # Embedding modeli
-    emb_model = manager.catalog.get_model("qwen3-embedding-0.6b")
-    emb_model.download(lambda p: print(f"\rEmbedding modeli indiriliyor: {p:.1f}%", end=""))
-    print()
-    emb_model.load()
-    emb_client = emb_model.get_embedding_client()
-    print("✓ Embedding modeli hazır.\n")
+from foundry_runtime import FoundryRuntime, FoundryRuntimeConfig
+from retriever import Retriever
+from storage import Storage
 
-    # Soru-cevap döngüsü
-    print("Sorunuzu yazın (çıkmak için 'q'):\n")
-    while True:
-        query = input("Soru: ").strip()
-        if query.lower() == "q":
-            break
-        if not query:
-            continue
 
-        results = get_top_chunks(query, emb_client, top_k=3)
-        print("\nİlgili bilgiler:")
-        for i, (score, source, content) in enumerate(results):
-            print(f"  [{i+1}] ({score:.4f}) [{source}]\n       {content}\n")
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--db-path", default="runtime_data/rag.db")
+    parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--model-cache-dir")
+    parser.add_argument("--app-data-dir")
+    parser.add_argument("--logs-dir")
+    parser.add_argument("--allow-download", action="store_true")
+    return parser
 
-    emb_model.unload()
-    print("Çıkılıyor...")
+
+def run(args: argparse.Namespace) -> int:
+    config = FoundryRuntimeConfig(
+        app_name="local-rag-assistant",
+        app_data_dir=args.app_data_dir,
+        model_cache_dir=args.model_cache_dir,
+        logs_dir=args.logs_dir,
+    )
+    storage = Storage(args.db_path)
+    storage.initialize_schema()
+    with FoundryRuntime(config) as runtime:
+        client = runtime.get_embedding_client(allow_download=args.allow_download)
+        retriever = Retriever(storage, client, config.embedding_model_alias)
+        while True:
+            query = input("Soru ('q' ile çık): ").strip()
+            if query.casefold() == "q":
+                break
+            if not query:
+                continue
+            for result in retriever.search(query, top_k=args.top_k):
+                print(f"[{result.source} / chunk {result.chunk_index}]")
+                print(result.content)
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    return run(build_parser().parse_args(argv))
+
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

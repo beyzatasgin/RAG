@@ -1,94 +1,67 @@
-import sqlite3
-import json
-import os
-from foundry_local_sdk import Configuration, FoundryLocalManager
+"""Dokümanları güvenli ve idempotent biçimde runtime SQLite DB'ye indeksle."""
 
-def get_manager():
-    config = Configuration(app_name="foundry_local_samples")
-    FoundryLocalManager.initialize(config)
-    return FoundryLocalManager.instance
+from __future__ import annotations
 
-def load_documents(data_folder="data"):
-    docs = []
-    for filename in os.listdir(data_folder):
-        if filename.endswith(".txt"):
-            filepath = os.path.join(data_folder, filename)
-            with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read()
-            docs.append((filename, content))
-    return docs
+import argparse
+import sys
+from collections.abc import Sequence
 
-def chunk_document(filename, content):
-    chunks = []
-    paragraphs = [p.strip() for p in content.split("\n") if p.strip()]
-    for i, paragraph in enumerate(paragraphs):
-        chunks.append({
-            "source": filename,
-            "chunk_id": i,
-            "content": paragraph
-        })
-    return chunks
+from foundry_runtime import FoundryRuntime, FoundryRuntimeConfig
+from ingestion_service import IngestionService
+from storage import Storage
 
-def setup_database():
-    conn = sqlite3.connect("documents.db")
-    cursor = conn.cursor()
-    cursor.execute("DROP TABLE IF EXISTS documents")
-    cursor.execute("""
-        CREATE TABLE documents (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            source    TEXT,
-            chunk_id  INTEGER,
-            content   TEXT,
-            embedding TEXT
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-dir", default="data")
+    parser.add_argument("--db-path", default="runtime_data/rag.db")
+    parser.add_argument("--chunk-size", type=int, default=800)
+    parser.add_argument("--chunk-overlap", type=int, default=100)
+    parser.add_argument("--model-cache-dir")
+    parser.add_argument("--app-data-dir")
+    parser.add_argument("--logs-dir")
+    parser.add_argument("--allow-download", action="store_true")
+    parser.add_argument("--delete-missing", action="store_true")
+    return parser
+
+
+def run(args: argparse.Namespace) -> int:
+    config = FoundryRuntimeConfig(
+        app_name="local-rag-assistant",
+        app_data_dir=args.app_data_dir,
+        model_cache_dir=args.model_cache_dir,
+        logs_dir=args.logs_dir,
+    )
+    storage = Storage(args.db_path)
+    service = IngestionService(
+        storage,
+        chunk_size=args.chunk_size,
+        chunk_overlap=args.chunk_overlap,
+        model_alias=config.embedding_model_alias,
+    )
+    with FoundryRuntime(config) as runtime:
+        client = runtime.get_embedding_client(allow_download=args.allow_download)
+        summary = service.ingest(
+            args.data_dir, client, delete_missing=args.delete_missing
         )
-    """)
-    conn.commit()
-    return conn, cursor
 
-def main():
-    print("=== Doküman Ingestion Başlıyor ===\n")
+    for name in (
+        "discovered", "added", "updated", "unchanged", "skipped",
+        "failed", "missing", "deleted", "total_chunks",
+    ):
+        print(f"{name}={getattr(summary, name)}")
+    for error in summary.errors:
+        print(f"error={error}", file=sys.stderr)
+    return 1 if summary.failed else 0
 
-    # Model başlat
-    manager = get_manager()
-    model = manager.catalog.get_model("qwen3-embedding-0.6b")
-    model.download(lambda p: print(f"\rModel indiriliyor: {p:.1f}%", end=""))
-    print()
-    model.load()
-    client = model.get_embedding_client()
-    print("✓ Embedding modeli hazır.\n")
 
-    # Veritabanını hazırla
-    conn, cursor = setup_database()
-    print("✓ Veritabanı hazırlandı.\n")
+def main(argv: Sequence[str] | None = None) -> int:
+    try:
+        return run(build_parser().parse_args(argv))
+    except Exception as exc:
+        print(f"Ingestion başarısız: {type(exc).__name__}: {exc}", file=sys.stderr)
+        return 1
 
-    # Dokümanları yükle ve chunk'la
-    docs = load_documents("data")
-    all_chunks = []
-    for filename, content in docs:
-        chunks = chunk_document(filename, content)
-        all_chunks.extend(chunks)
-        print(f"✓ {filename} → {len(chunks)} chunk")
-
-    print(f"\nToplam {len(all_chunks)} chunk embedding'e gönderilecek.\n")
-
-    # Embedding üret ve SQLite'a kaydet
-    for i, chunk in enumerate(all_chunks):
-        result = client.generate_embedding(chunk["content"])
-        embedding_vector = result.data[0].embedding
-        embedding_json = json.dumps(embedding_vector)
-
-        cursor.execute(
-            "INSERT INTO documents (source, chunk_id, content, embedding) VALUES (?, ?, ?, ?)",
-            (chunk["source"], chunk["chunk_id"], chunk["content"], embedding_json)
-        )
-        print(f"  [{i+1}/{len(all_chunks)}] '{chunk['content'][:50]}...' kaydedildi.")
-
-    conn.commit()
-    conn.close()
-    model.unload()
-
-    print(f"\n✓ Tüm chunk'lar veritabanına kaydedildi.")
-    print("✓ documents.db güncellendi.")
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
