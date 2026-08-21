@@ -43,11 +43,11 @@ class FakeChat:
 
 
 def test_full_flow_and_real_metadata_sources():
-    retriever = FakeRetriever([item("grand_slam.txt", 2)])
+    retriever = FakeRetriever([item("rag_sistemi_nasil_calisir.md", 2)])
     chat = FakeChat()
-    answer = RagService(retriever, chat).answer("Turnuvalar?", top_k=2, min_score=.2)
+    answer = RagService(retriever, chat).answer("Kaynaklar nasıl doğrulanır?", top_k=2, min_score=.2)
     assert answer.answer == "Cevap [K1]"
-    assert answer.sources[0].source == "grand_slam.txt"
+    assert answer.sources[0].source == "rag_sistemi_nasil_calisir.md"
     assert retriever.calls[0][1] == {"top_k": 2, "min_score": .2}
     assert chat.calls[0][0]["role"] == "system"
     assert chat.settings.max_tokens == 192

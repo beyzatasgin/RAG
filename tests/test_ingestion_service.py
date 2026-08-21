@@ -27,7 +27,9 @@ def make_service(tmp_path, **kwargs):
 
 def test_new_file_is_added(tmp_path):
     data = tmp_path / "data"; data.mkdir()
-    (data / "tenis.txt").write_text("Türkçe tenis belgesi.", encoding="utf-8")
+    (data / "python_kurulum_ve_venv.md").write_text(
+        "Türkçe sanal ortam belgesi.", encoding="utf-8"
+    )
     storage, service = make_service(tmp_path)
     summary = service.ingest(data, FakeEmbeddingClient())
     assert (summary.added, summary.failed) == (1, 0)
