@@ -32,10 +32,10 @@ venv/
 *.db-journal
 *.db-shm
 *.db-wal
+/documents.db
 
 # Gelecekteki kullanıcı yüklemeleri ve çalışma zamanı artifactleri
 uploads/
 artifacts/
 runtime_data/
 recovery/
-runtime_data/

@@ -15,7 +15,11 @@ Query    → local embedding → NumPy full scan → semantic/hybrid results
 
 ## Normalize SQLite şeması
 
-Yeni çalışma veritabanı varsayılan olarak `runtime_data/rag.db` yolundadır. Legacy `documents.db` değiştirilmez.
+Week 2 geliştirmesi sırasında legacy DB değiştirilmeden korunmuş ve yeni çalışma
+veritabanı `runtime_data/rag.db` yoluna ayrılmıştır. Final repository temizliğinde
+aktif uygulama tarafından kullanılmayan legacy binary DB kaldırılmıştır. Güncel
+uygulamanın tek runtime DB'si `runtime_data/rag.db` dosyasıdır; kurulum için başka bir
+binary DB gerekmez. Yeniden indekslenebilir kaynak belgeler `data/` altında korunur.
 
 - `schema_info`: `schema_version=1`
 - `documents`: benzersiz kaynak, içerik SHA-256, dosya boyutu ve UTC indeks zamanı
@@ -54,7 +58,10 @@ Bu komutlarda `--allow-download` verilmediği sürece cache'te olmayan model ind
 
 ## Test yaklaşımı
 
-Unit testler `tmp_path` veritabanları ve fake embedding client kullanır. Gerçek Foundry modeli, shared cache ve legacy DB unit testlerde açılmaz. Testler chunking sınırlarını, şemayı, foreign key/cascade davranışını, rollback'i, idempotency'yi, missing/delete politikasını, veri bozulmasını ve deterministic hybrid sıralamayı kapsar.
+Unit testler `tmp_path` veritabanları ve fake embedding client kullanır. Gerçek Foundry
+modeli ve shared cache unit testlerde açılmaz. Testler chunking sınırlarını, şemayı,
+foreign key/cascade davranışını, rollback'i, idempotency'yi, missing/delete
+politikasını, veri bozulmasını ve deterministic hybrid sıralamayı kapsar.
 
 ## Öğrenme çıktıları
 
@@ -63,6 +70,6 @@ Unit testler `tmp_path` veritabanları ve fake embedding client kullanır. Gerç
 - Transaction sınırını pahalı model çağrısından sonra kurmak
 - Vektör JSON'unu okuma sınırında doğrulamak
 - Semantic ve keyword skorlarını açıklanabilir biçimde birleştirmek
-- Legacy kullanıcı verisini yeni runtime verisinden ayırmak
+- Tarihsel veriyi yeni runtime verisinden ayırmak
 
 Hafta 3'te retrieved chunk'lara dayanan grounded prompt ve yerel chat generation eklenecektir.
