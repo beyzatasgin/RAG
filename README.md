@@ -166,16 +166,21 @@ Cached embedding smoke çalışmasında 5 embedding ve 1024 dimension doğruland
 chat modeli de indirmesiz çalıştırıldı. Hafta sonunda test sayısı 81'e ulaştı.
 Detaylar [Week 1 belgesindedir](docs/week-1.md).
 
-Önemli bir mühendislik dersi test discovery sırasında yaşandı: eski `sqlite_test.py`
-import sırasında tracked legacy DB'ye üç örnek kayıt ekledi. Sorun hash kontrolü,
-kurtarma yedeği, Git HEAD ile byte düzeyi doğrulama, stat-cache invalidation ve
-sınırlandırılmış pytest discovery ile güvenli biçimde çözüldü. Kişisel recovery yolu
+Önemli bir mühendislik dersi test discovery sırasında yaşandı: eski SQLite deneme
+betiği import sırasında tracked legacy DB'ye üç örnek kayıt eklemişti. Sorun hash
+kontrolü, kurtarma yedeği, Git HEAD ile byte düzeyi doğrulama, stat-cache invalidation
+ve sınırlandırılmış pytest discovery ile güvenli biçimde çözüldü. Import yan etkisi
+taşıyan deneme betiği final repository temizliğinde kaldırıldı. Kişisel recovery yolu
 ve kullanıcı verisi public dokümana taşınmadı.
 
 ### Hafta 2 — Ingestion, SQLite ve Retrieval
 
-`week2` branch'inde legacy `documents.db` salt korunurken yeni çalışma veritabanı
-`runtime_data/rag.db` olarak ayrıldı. Normalize şema dört parçadan oluşur:
+`week2` branch'inde legacy DB salt korunurken yeni çalışma veritabanı
+`runtime_data/rag.db` olarak ayrıldı. Final repository temizliğinde aktif uygulama
+tarafından kullanılmayan legacy binary DB kaldırıldı. Güncel uygulama yalnızca
+`runtime_data/rag.db` kullanır; kaynak metinler `data/` altında korunur. Tarihsel
+snapshot gerektiğinde temizlik öncesi `36ac3b4` commit'inden alınabilir. Normalize
+şema dört parçadan oluşur:
 
 - `schema_info`: şema sürümü;
 - `documents`: source, content SHA-256, boyut ve indeks zamanı;
@@ -509,8 +514,7 @@ RAG/
 ├── data/                                # Beş örnek tenis dokümanı
 ├── tests/                               # 187 yan etkisiz unit test
 ├── docs/                                # Week 1–4 ve final belgeleri
-├── runtime_data/                        # Ignore edilen DB/upload/result/log alanı
-└── documents.db                         # Korunan legacy veritabanı
+└── runtime_data/                        # Ignore edilen DB/upload/result/log alanı
 ```
 
 ## Git ve Geliştirme Geçmişi
