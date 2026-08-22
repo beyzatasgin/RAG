@@ -18,6 +18,16 @@ def test_headless_initial_render_does_not_initialize_model():
     app_path = Path(__file__).resolve().parents[1] / "app_ui.py"
     test = AppTest.from_file(app_path, default_timeout=10).run()
     assert not test.exception
-    assert any("Yerel RAG Asistanı" in title.value for title in test.title)
+    assert any("Çevrimdışı Yazılım Destek Asistanı" in title.value for title in test.title)
+    assert any(
+        "Python, pip, Git, GitHub, SQLite, Microsoft Foundry Local ve RAG"
+        in markdown.value
+        for markdown in test.markdown
+    )
+    assert any(
+        "sanal ortam nasıl oluşturulur?" in text_area.placeholder
+        for text_area in test.text_area
+    )
+    assert all("Grand Slam" not in text_area.placeholder for text_area in test.text_area)
     assert any(button.label == "Sor" for button in test.button)
     assert any(button.label == "Belgeleri indeksle" for button in test.button)
