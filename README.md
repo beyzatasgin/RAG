@@ -572,6 +572,4 @@ Aşağıdaki bağlantılar erişilebilirlik açısından doğrulanmıştır:
 - [Microsoft Foundry Local başlangıç rehberi](https://learn.microsoft.com/azure/ai-foundry/foundry-local/get-started)
 - [SQLite resmî sitesi](https://www.sqlite.org/index.html)
 
-Tech Community bağlantısı bu projenin ilham aldığı Microsoft Foundry Local RAG
-tutorial'ıdır. README bağlantıları çalışma zamanında çağrılmaz.
 
