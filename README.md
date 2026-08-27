@@ -1,13 +1,11 @@
 # Local RAG AI Assistant with Microsoft Foundry Local
 <img width="701" height="535" alt="image" src="https://github.com/user-attachments/assets/15ed0c19-6f26-4d13-bc7a-8dbe36f24a6e" />
 <img width="726" height="777" alt="image" src="https://github.com/user-attachments/assets/b8289876-1531-440b-8137-c76ee806db11" />
-
 Microsoft Foundry Local kullanan, belgeler üzerinde soru-cevap yapabilen tamamen yerel
 bir RAG (Retrieval-Augmented Generation) uygulamasıdır. Dokümanlar, chunk'lar,
 metadata ve embedding vektörleri SQLite içinde tutulur; semantic/hybrid retrieval
 sonuçları grounded prompt ile yerel chat modeline verilir. CLI ve Streamlit arayüzü,
 model cevabından bağımsız olarak uygulama tarafından doğrulanan kaynakları gösterir.
-
 Python paketleri ve modeller ilk kez indirildikten sonra normal kullanımda cloud API,
 Azure kaynağı veya API key gerekmez. Bununla birlikte tam ağ izolasyonu otomatik olarak
 kanıtlanmamıştır; ağ adaptörü kapalı uçtan uca test manuel doğrulama adımıdır.
@@ -19,7 +17,6 @@ kanıtlanmamıştır; ağ adaptörü kapalı uçtan uca test manuel doğrulama a
 - [Neden Bu Proje?](#neden-bu-proje)
 - [Sistem Mimarisi](#sistem-mimarisi)
 - [Kullanılan Teknolojiler](#kullanılan-teknolojiler)
-- [Başlangıçtaki Proje Durumu](#başlangıçtaki-proje-durumu)
 - [Dört Haftalık Geliştirme Süreci](#dört-haftalık-geliştirme-süreci)
 - [Önemli Sorunlar ve Çözümler](#önemli-sorunlar-ve-çözümler)
 - [Test Gelişimi](#test-gelişimi)
@@ -36,20 +33,19 @@ kanıtlanmamıştır; ağ adaptörü kapalı uçtan uca test manuel doğrulama a
 - [Git ve Geliştirme Geçmişi](#git-ve-geliştirme-geçmişi)
 - [Gizlilik, Güvenlik ve Responsible AI](#gizlilik-güvenlik-ve-responsible-ai)
 - [Bilinen Sınırlamalar](#bilinen-sınırlamalar)
-- [Gelecek Geliştirmeler](#gelecek-geliştirmeler)
 - [Kaynaklar](#kaynaklar)
-- [Lisans](#lisans)
 
 ## Proje Durumu
 
 | Alan | Durum |
 | --- | --- |
 | Dört haftalık geliştirme | Tamamlandı |
-| Unit test | 187 passed |
+| Unit test | 189 passed |
 | Local embedding | Doğrulandı |
 | Local chat inference | Doğrulandı |
 | Streamlit UI | Tamamlandı |
-| Evaluation | Tamamlandı |
+| Evaluation dataset | 22 vaka: 16 answerable, 6 unanswerable |
+| Güncel software-support ölçümü | Yeniden çalıştırılacak |
 | Offline varsayılan | Etkin |
 | Tam ağ izolasyonu | Manuel doğrulama gerekiyor |
 
@@ -58,7 +54,6 @@ DB ve cloud/API kaynak taraması başarılıdır; ancak bu kontroller fiziksel a
 izolasyonunun kanıtı değildir.
 
 ## Demo Özeti
-
 Kullanıcı uygulamada:
 
 - UTF-8 `.txt` ve `.md` belgeleri yükleyebilir;
@@ -67,20 +62,23 @@ Kullanıcı uygulamada:
 - cevapla birlikte doğrulanmış dosya/chunk kaynaklarını görebilir;
 - debug modunda semantic ve combined skorları inceleyebilir;
 - retrieval sonucu yoksa deterministik “Belgelerde bu bilgi bulunamadı.” davranışını
+
   görebilir;
+
 - retrieval evaluation ve küçük performans benchmark'ını çalıştırabilir.
 
 Repository'de doğrulanmış final UI ekran görüntüsü bulunmadığı için bu README'de
 screenshot kullanılmamıştır. Ayrıntılı sunum akışı için [demo metnine](docs/demo-script.md)
 bakın.
+Güncel örnek koleksiyon tenis alanı yerine Python ortamları, pip, Git/GitHub,
+SQLite, RAG, proje sorun giderme ve offline Foundry Local kullanımına odaklanan
+sekiz yazılım destek dokümanından oluşur.
 
 ## Neden Bu Proje?
-
 Genel amaçlı bir dil modeli, kullanıcının özel ders notlarını, şirket içi belgelerini
 veya yerel dosyalarını kendiliğinden bilmez. RAG önce soruyla ilgili belge parçalarını
 bulur, sonra bu parçaları modele bağlam olarak verir. Böylece cevap özel dokümanlara
 dayandırılabilir.
-
 Yerel yaklaşımın başlıca faydaları şunlardır:
 
 - belgeler ve model inference işlemleri kullanıcının bilgisayarında kalır;
@@ -122,7 +120,9 @@ Başlıca bileşenler:
 - `chat_utils.py`: streaming cevap toplama ve reasoning temizleme.
 - `foundry_runtime.py`: SDK, model, client, unload ve cleanup yaşam döngüsü.
 - `ingestion_service.py`, `chunking.py`, `storage.py`: idempotent ingestion ve
+
   normalize SQLite katmanı.
+
 - `retriever.py`, `retrieval_utils.py`: semantic/hybrid full-scan retrieval.
 
 Daha ayrıntılı diyagramlar için [mimari belgesine](docs/architecture.md) bakın.
@@ -145,11 +145,9 @@ Hedef ortam Windows x64 ve Python 3.13'tür. Proje doğrudan `openai` import etm
 `foundry-local-sdk-winml` kullanılır; standart `foundry-local-sdk` varyantını aynı
 ortama ayrıca kurmayın.
 
-
 ## Dört Haftalık Geliştirme Süreci
 
 ### Hafta 1 — Güvenli Temel ve Foundry Local
-
 `feat/week1-foundation` üzerinde önce test ve runtime güvenliği kuruldu:
 
 - `pytest.ini` ile keşif yalnızca `tests/` diziniyle sınırlandı;
@@ -159,13 +157,14 @@ ortama ayrıca kurmayın.
 - Python artifactleri, `.venv`, runtime ve recovery yolları `.gitignore` kapsamına alındı;
 - izole `.venv`, sabit runtime/dev bağımlılıkları ve `requirements-lock.txt` hazırlandı;
 - `foundry_runtime.py` ile lazy SDK initialization, offline-by-default davranışı,
+
   explicit `allow_download`, model ownership, cleanup ve unload retry uygulandı;
+
 - shared model cache kullanıcı tarafından açıkça seçilen bir opt-in oldu.
 
 Cached embedding smoke çalışmasında 5 embedding ve 1024 dimension doğrulandı. Cached
 chat modeli de indirmesiz çalıştırıldı. Hafta sonunda test sayısı 81'e ulaştı.
 Detaylar [Week 1 belgesindedir](docs/week-1.md).
-
 Önemli bir mühendislik dersi test discovery sırasında yaşandı: eski SQLite deneme
 betiği import sırasında tracked legacy DB'ye üç örnek kayıt eklemişti. Sorun hash
 kontrolü, kurtarma yedeği, Git HEAD ile byte düzeyi doğrulama, stat-cache invalidation
@@ -174,7 +173,6 @@ taşıyan deneme betiği final repository temizliğinde kaldırıldı. Kişisel 
 ve kullanıcı verisi public dokümana taşınmadı.
 
 ### Hafta 2 — Ingestion, SQLite ve Retrieval
-
 `week2` branch'inde legacy DB salt korunurken yeni çalışma veritabanı
 `runtime_data/rag.db` olarak ayrıldı. Final repository temizliğinde aktif uygulama
 tarafından kullanılmayan legacy binary DB kaldırıldı. Güncel uygulama yalnızca
@@ -204,7 +202,6 @@ doğrulandı; ikinci ingestion tüm belgeleri unchanged bıraktı ve Grand Slam 
 [Week 2 belgesindedir](docs/week-2.md).
 
 ### Hafta 3 — Grounded RAG
-
 `week3` branch'inde retrieval yerel chat modeliyle birleştirildi:
 
 - `prompt_builder.py`: stabil `[K1]`, `[K2]` etiketleri ve 7000 karakter context bütçesi;
@@ -217,11 +214,9 @@ Prompt, belge içindeki talimatları veri olarak sınırlar; `/no_think` user me
 ilk satırında kullanılır. Retrieval sonucu yoksa chat modeli hiç çağrılmaz. Yaklaşık
 8 GB RAM için embedding ve chat modelleri aynı anda tutulmak yerine ardışık lifecycle
 aşamalarında çalıştırılır.
-
 Kaynak listesi model cevabından değil prompta gerçekten giren retrieval metadata'sından
 oluşturulur. Model inline citation üretmezse cevap değiştirilmez veya otomatik `[K1]`
 eklenmez; CLI/UI açık bir uyarı gösterir. Test sayısı 165'e ulaştı.
-
 Gerçek smoke'ta retrieval ve generation çalıştı, `grand_slam.txt` doğru kaynak oldu.
 Ancak küçük chat modeli geçerli inline citation üretmedi ve doğru kaynak mevcutken bir
 turnuva ayrıntısını yanlış eşledi. Bu sonuç gizlenmedi: verified source list, citation
@@ -229,12 +224,13 @@ durumu ve “model yanıtını kaynaklarla kontrol edin” notu Responsible AI d
 parçası oldu. Detaylar [Week 3 belgesindedir](docs/week-3.md).
 
 ### Hafta 4 — UI, Evaluation ve Finalizasyon
-
 `week4` branch'inde proje son kullanıcı ve ölçüm araçlarıyla tamamlandı:
 
 - `app_ui.py` ve `ui_logic.py` ile Streamlit UI;
 - yalnızca `.txt`/`.md`, 5 MiB sınırı, UTF-8 kontrolü, path traversal engeli ve
+
   geçici dosya + `os.replace` ile atomik upload;
+
 - cevap ve ingestion özetini koruyan Streamlit session state;
 - UI açılışında model yüklemeyen, yalnızca butonla çalışan işlemler;
 - `evaluate.py`, `benchmark.py`, `offline_check.py`;
@@ -245,11 +241,21 @@ parçası oldu. Detaylar [Week 3 belgesindedir](docs/week-3.md).
 Final proje `0e7b5d4` commit'iyle tamamlandı ve `180a398` merge commit'iyle `main`
 branch'ine alındı. Detaylar [Week 4 belgesindedir](docs/week-4.md).
 
+### Final Sonrası — Yazılım Destek Alanına Uyarlama
+`feat/offline-software-support` branch'inde örnek tenis koleksiyonu kaldırılarak
+sekiz yazılım destek dokümanı eklendi. Streamlit arayüzü, benchmark soruları,
+evaluation vakaları ve ilgili testler yeni alana uyarlandı.
+Güncel evaluation dataset'i 22 vakadan oluşur: 16 answerable ve 6 unanswerable.
+Unit test sayısı 189'a yükseldi. Değişiklikler PR #4 ile `main` branch'ine alındı;
+merge commit'i `68c69d7`'dir. Yeni koleksiyon için gerçek ingestion, evaluation ve
+benchmark yeniden çalıştırılmadan eski performans değerleri güncel sonuç olarak
+sunulmaz.
+
 ## Önemli Sorunlar ve Çözümler
 
 | Sorun | Kök neden | Çözüm |
 | --- | --- | --- |
-| Pytest gerçek DB'ye yazdı | Eski `*_test.py` scriptleri import sırasında çalışıyordu | `pytest.ini`, tests-only discovery, import-safe kod |
+| Pytest gerçek DB'ye yazdı | Eski `\*_test.py` scriptleri import sırasında çalışıyordu | `pytest.ini`, tests-only discovery, import-safe kod |
 | Git DB değişikliğini göstermedi | Boyut/mtime stat-cache ile eşleşiyordu | Hash karşılaştırması, mtime refresh, HEAD restore |
 | Disk alanı hızla azaldı | Docker, cacheler ve dinamik pagefile | Reboot, onaylı pip/npm cache temizliği, disk eşikleri |
 | Modeller tekrar indirilecekti | App-name bazlı ayrı cacheler | Explicit shared `model_cache_dir` |
@@ -258,7 +264,6 @@ branch'ine alındı. Detaylar [Week 4 belgesindedir](docs/week-4.md).
 | Unload retry mümkün değildi | Cleanup sahiplik kaydı erken temizleniyordu | Başarısız modeller için retry-safe lifecycle |
 
 ## Test Gelişimi
-
 Başlangıçta otomatik test altyapısı yoktu. Dört hafta boyunca model, DB, ingestion,
 retrieval, RAG, CLI, upload, Streamlit ve evaluation davranışları fake nesneler ve
 geçici dosyalarla kapsandı.
@@ -271,10 +276,17 @@ geçici dosyalarla kapsandı.
 | Week 2 | 129 |
 | Week 3 | 165 |
 | Final Week 4 | 187 |
+| Software-support uyarlaması | 189 |
 
 ## Evaluation Sonuçları
+Güncel `evaluation/evaluation_cases.json` yazılım destek alanında 22 vaka içerir:
+16 answerable ve 6 unanswerable. Yeni koleksiyon için gerçek ingestion ve evaluation
+henüz yeniden çalıştırılmadığından güncel Hit Rate, MRR, no-result ve latency değeri
+raporlanmamaktadır.
 
-Gerçek retrieval evaluation `top_k=3` ve `min_score=0.2` ile çalıştırıldı:
+### Tarihsel Week 4 baseline
+Tenis örnek koleksiyonu kullanılırken gerçek retrieval evaluation `top_k=3` ve
+`min_score=0.2` ile çalıştırılmıştı:
 
 | Metrik | Sonuç |
 | --- | ---: |
@@ -287,14 +299,19 @@ Gerçek retrieval evaluation `top_k=3` ve `min_score=0.2` ile çalıştırıldı
 | p50 | 843.32 ms |
 | p95 | 1179.85 ms |
 
-Bu metrikler retrieval kalitesini ölçer; generation doğruluğu değildir. İki
+Bu tarihsel metrikler retrieval kalitesini ölçer; generation doğruluğu değildir. İki
 unanswerable soru da retrieval sonucu getirdi. Dataset sonucu iyileştirmek amacıyla
 sonradan değiştirilmedi. Citation validity retrieval-only evaluation'da ölçülmedi ve
 `null` raporlandı. Ayrıntılar [evaluation belgesindedir](docs/evaluation.md).
 
 ## Benchmark Sonuçları
+Güncel benchmark soruları Windows sanal ortam kurulumu, SQLite
+`database is locked` hatası ve RAG kaynak listesinin oluşturulması üzerinedir.
+Software-support koleksiyonu için yeni ölçüm henüz alınmadığından aşağıdaki değerler
+yalnızca tarihsel Week 4 baseline'ıdır.
 
-Gerçek ölçümler:
+### Tarihsel Week 4 baseline
+Tenis örnek koleksiyonuyla alınan gerçek ölçümler:
 
 | Aşama | Süre |
 | --- | ---: |
@@ -318,10 +335,8 @@ iddiasında bulunulmadı. Generation çıktısı otomatik olarak doğru kabul ed
 ```powershell
 git clone https://github.com/beyzatasgin/RAG.git
 cd RAG
-
 & "$env:LOCALAPPDATA\Programs\Python\Python313\python.exe" -m venv .venv
-.\.venv\Scripts\Activate.ps1
-
+.\\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-lock.txt
 ```
 
@@ -329,11 +344,10 @@ PowerShell yalnızca mevcut process için activation script'ini engelliyorsa:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\\.venv\Scripts\Activate.ps1
 ```
 
 Global execution policy değiştirilmez.
-
 Runtime ve test bağımlılıklarını ayrı kurmak için:
 
 ```powershell
@@ -345,7 +359,6 @@ python -m pip install -r requirements-dev.txt
 setidir. Model dosyaları lock dosyasına dahil değildir.
 
 ## Model Hazırlığı
-
 İlk model edinimi internet bağlantısı ve yeterli disk alanı gerektirir. Hedef alias'lar:
 
 - `qwen3-embedding-0.6b`
@@ -354,9 +367,9 @@ setidir. Model dosyaları lock dosyasına dahil değildir.
 Normal CLI/UI örneklerinde `--allow-download` kullanılmaz. Shared cache açık opt-in'dir:
 
 ```powershell
-$env:RAG_MODEL_CACHE_DIR="$env:USERPROFILE\.foundry_local_samples\cache\models"
-$env:RAG_APP_DATA_DIR="$env:USERPROFILE\.local-rag-assistant"
-$env:RAG_LOGS_DIR="$env:USERPROFILE\.local-rag-assistant\logs"
+$env:RAG_MODEL_CACHE_DIR="$env:USERPROFILE\\.foundry_local_samples\cache\models"
+$env:RAG_APP_DATA_DIR="$env:USERPROFILE\\.local-rag-assistant"
+$env:RAG_LOGS_DIR="$env:USERPROFILE\\.local-rag-assistant\logs"
 $env:RAG_DB_PATH="runtime_data\rag.db"
 ```
 
@@ -365,7 +378,6 @@ metadata değişmemesi ağsızlık kanıtı değildir. Aynı shared cache'i fark
 sürümleriyle veya eşzamanlı uygulamalarla kullanmak risklidir.
 
 ## Doküman İndeksleme
-
 `ingest.py --help` ile uyumlu offline-varsayılan örnek:
 
 ```powershell
@@ -391,7 +403,7 @@ yeniden embedding üretmez. Eksik dosyalar normalde korunur; silme yalnızca bil
 ```powershell
 python main.py `
   --db-path $env:RAG_DB_PATH `
-  --question "Grand Slam turnuvaları hangileridir?" `
+  --question "Windows PowerShell'de proje için sanal ortam nasıl oluşturulur?" `
   --top-k 3 `
   --min-score 0.2 `
   --context-budget 7000 `
@@ -416,7 +428,6 @@ python main.py `
 garantisi taşımaz; “Kullanılan kaynaklar” bölümündeki dosyalarla kontrol edilmelidir.
 
 ## Streamlit UI
-
 Önce [Model Hazırlığı](#model-hazırlığı) bölümündeki environment değişkenlerini
 tanımlayın, ardından:
 
@@ -491,7 +502,7 @@ python -m pytest tests -p no:cacheprovider -q
 Son doğrulanmış sonuç:
 
 ```text
-187 passed
+189 passed
 ```
 
 Unit suite gerçek Foundry modelini, evaluation veya benchmark'ı çalıştırmaz. Fake
@@ -510,9 +521,9 @@ RAG/
 ├── retriever.py, retrieval_utils.py     # Semantic/hybrid retrieval
 ├── evaluate.py, benchmark.py            # Ölçüm araçları
 ├── offline_check.py                     # Muhafazakâr offline readiness
-├── evaluation/                          # Sabit evaluation vakaları
-├── data/                                # Beş örnek tenis dokümanı
-├── tests/                               # 187 yan etkisiz unit test
+├── evaluation/                          # 22 software-support evaluation vakası
+├── data/                                # Sekiz yazılım destek dokümanı
+├── tests/                               # 189 yan etkisiz unit test
 ├── docs/                                # Week 1–4 ve final belgeleri
 └── runtime_data/                        # Ignore edilen DB/upload/result/log alanı
 ```
@@ -529,6 +540,10 @@ RAG/
 | `0a9418b` | Week 3 grounded RAG |
 | `0e7b5d4` | Week 4/final project |
 | `180a398` | Merge to `main` |
+| `9967520` | Tenis koleksiyonunu yazılım destek dokümanlarıyla değiştirme |
+| `011072e` | Evaluation vakalarını software-support alanına uyarlama |
+| `14c68cc` | UI ve benchmark'ı software-support alanına uyarlama |
+| `68c69d7` | PR #4 software-support uyarlamasını `main` branch'ine merge etme |
 
 Bu commitlerin tamamı repository Git geçmişinde doğrulanmıştır.
 
@@ -537,16 +552,23 @@ Bu commitlerin tamamı repository Git geçmişinde doğrulanmıştır.
 - Belgeler, embeddings ve model inference yerel makinede işlenir.
 - Uygulama API key veya cloud credential okumaz.
 - `runtime_data/`, uploadlar, ölçüm sonuçları, `.venv` ve recovery artifactleri
+
   Git tarafından ignore edilir.
+
 - Upload adında traversal, absolute path, drive path, klasör bileşeni, geçersiz UTF-8
+
   ve 5 MiB üzeri içerik reddedilir.
+
 - Belgelerdeki talimatlar prompt içinde veri olarak sınırlandırılır; bu prompt injection
+
   riskini azaltır fakat mutlak güvenlik sağlamaz.
+
 - Kaynak listesi model metninden değil retrieval metadata'sından oluşturulur.
 - Model inline citation üretmezse cevap değiştirilmez; kullanıcı açıkça uyarılır.
 - Kullanıcı model cevabını kaynak belgelerle kontrol etmelidir.
 - Shared cache metadata'sı SDK tarafından yazılabilir.
 - Uygulama tek kullanıcılı/local eğitim projesidir; production veya multi-user servis
+
   güvenlik modeli sunmaz.
 
 ## Bilinen Sınırlamalar
@@ -557,14 +579,20 @@ Bu commitlerin tamamı repository Git geçmişinde doğrulanmıştır.
 - Upload yalnızca UTF-8 `.txt` ve `.md` destekler.
 - Küçük chat modeli hallucination yapabilir veya ayrıntıları yanlış eşleyebilir.
 - Inline citation üretimi garanti değildir.
-- Evaluation'da unanswerable threshold zayıf kalmış, iki cevapsız vaka sonuç getirmiştir.
+- Tarihsel tenis baseline'ında unanswerable threshold zayıf kalmış ve iki cevapsız
+
+  vaka sonuç getirmiştir; eşik güncel software-support dataset'iyle yeniden
+  doğrulanmalıdır.
+
+- Güncel software-support koleksiyonu için gerçek evaluation ve benchmark ölçümü
+
+  henüz yeniden çalıştırılmamıştır.
+
 - Ağ adaptörü kapalı tam offline uçtan uca test manueldir.
 - Shared cache farklı SDK sürümleri/eşzamanlı uygulamalarla güvenli kabul edilmez.
 - Production ve çok kullanıcılı deployment hedeflenmemiştir.
 
-
 ## Kaynaklar
-
 Aşağıdaki bağlantılar erişilebilirlik açısından doğrulanmıştır:
 
 - [Microsoft Tech Community — Building Your First Local RAG Application with Foundry Local](https://techcommunity.microsoft.com/blog/azuredevcommunityblog/building-your-first-local-rag-applicationwith-foundry-local/4501968)
@@ -574,4 +602,3 @@ Aşağıdaki bağlantılar erişilebilirlik açısından doğrulanmıştır:
 
 Tech Community bağlantısı bu projenin ilham aldığı Microsoft Foundry Local RAG
 tutorial'ıdır. README bağlantıları çalışma zamanında çağrılmaz.
-
