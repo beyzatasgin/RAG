@@ -19,9 +19,9 @@ from storage import Storage
 
 
 QUESTIONS = (
-    "Grand Slam turnuvaları hangileridir?",
-    "Wimbledon hangi zeminde oynanır?",
-    "Teniste 40-40 skoruna ne ad verilir?",
+    "Windows PowerShell'de proje için sanal ortam nasıl oluşturulur?",
+    "SQLite database is locked hatası ne anlama gelir?",
+    "RAG sisteminde kaynak listesi nasıl oluşturulur?",
 )
 
 

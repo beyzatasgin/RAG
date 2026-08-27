@@ -91,9 +91,16 @@ def _render_sources(view: Any, debug: bool) -> None:
 
 
 def render_app() -> None:
-    st.set_page_config(page_title="Yerel RAG Asistanı", page_icon="📚", layout="centered")
-    st.title("Yerel RAG Asistanı")
-    st.write("Tamamen yerel Foundry Local RAG asistanı")
+    st.set_page_config(page_title="Offline Software Support Assistant", page_icon="📚", layout="centered")
+    st.title("Çevrimdışı Yazılım Destek Asistanı")
+    st.write(
+        "Python, pip, Git, GitHub, SQLite, Microsoft Foundry Local ve RAG "
+        "belgelerinden yerel olarak yanıt alın."
+    )
+    st.write(
+        "Sorunuzu yerel teknik destek belgelerine göre sorun. "
+        "Yanıtı gösterilen kaynaklarla kontrol edin."
+    )
     st.caption("Normal kullanım offline ve model indirme kapalıdır. Modeller yalnızca işlem başlatıldığında yüklenir.")
 
     with st.sidebar:
@@ -123,7 +130,10 @@ def render_app() -> None:
 
     qa_tab, documents_tab = st.tabs(["Soru-cevap", "Belge yönetimi"])
     with qa_tab:
-        question = st.text_area("Sorunuz", placeholder="Örnek: Grand Slam turnuvaları hangileridir?")
+        question = st.text_area(
+            "Sorunuz",
+            placeholder="Örneğin: Windows PowerShell'de sanal ortam nasıl oluşturulur?",
+        )
         if st.button("Sor", type="primary"):
             try:
                 clean = validate_question(question)

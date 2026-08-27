@@ -52,16 +52,16 @@ def test_cosine_similarity_stays_in_mathematical_range():
 
 
 def test_keyword_score_empty_query():
-    assert keyword_score("", "tenis kortu") == 0.0
+    assert keyword_score("", "Python sanal ortamı") == 0.0
 
 
 @pytest.mark.parametrize(
     ("query", "content", "expected"),
     [
-        ("tenis kort", "Tenis bir kort üzerinde oynanır.", 1.0),
-        ("futbol kale", "Tenis bir raket sporudur.", 0.0),
-        ("çim zemin", "Wimbledon çim zeminde oynanır.", 1.0),
-        ("tenis", "", 0.0),
+        ("sanal ortam", "Python için sanal ortam oluşturulur.", 1.0),
+        ("docker compose", "Python paketleri pip ile kurulur.", 0.0),
+        ("pip check", "Bağımlılıklar pip check ile doğrulanır.", 1.0),
+        ("python", "", 0.0),
     ],
 )
 def test_keyword_score_scenarios(query, content, expected):
@@ -69,11 +69,11 @@ def test_keyword_score_scenarios(query, content, expected):
 
 
 def test_keyword_score_counts_repeated_query_word_once():
-    assert keyword_score("tenis tenis kort", "Tenis bir spordur.") == pytest.approx(0.5)
+    assert keyword_score("python python ortam", "Python kurulumu yapılır.") == pytest.approx(0.5)
 
 
 def test_keyword_score_preserves_substring_matching():
-    assert keyword_score("tenis", "Profesyonel tenisçiler") == pytest.approx(1.0)
+    assert keyword_score("git", "GitHub üzerinde repository bulunur.") == pytest.approx(1.0)
 
 
 def test_hybrid_score_uses_expected_weights():

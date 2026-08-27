@@ -25,13 +25,13 @@ def make_index(tmp_path):
     storage = Storage(tmp_path / "rag.db")
     storage.initialize_schema()
     storage.replace_document(
-        source="grand_slam.txt", content_hash="a", file_size=10,
-        chunks=["Grand Slam turnuvaları tenis için önemlidir."],
+        source="python_kurulum_ve_venv.md", content_hash="a", file_size=10,
+        chunks=["Python sanal ortamları proje bağımlılıklarını ayırır."],
         embeddings=[[1.0, 0.0]], model_alias="model",
     )
     storage.replace_document(
-        source="kurallar.txt", content_hash="b", file_size=10,
-        chunks=["Servis ve puanlama kuralları."],
+        source="pip_ve_requirements.md", content_hash="b", file_size=10,
+        chunks=["Pip paketleri ve requirements dosyalarını yönetir."],
         embeddings=[[0.0, 1.0]], model_alias="model",
     )
     return storage
@@ -41,11 +41,11 @@ def test_cosine_similarity_orders_results(tmp_path):
     results = Retriever(make_index(tmp_path), FakeClient([1, 0]), "model").search(
         "bilinmeyen", semantic_weight=1.0, keyword_weight=0.0
     )
-    assert results[0].source == "grand_slam.txt"
+    assert results[0].source == "python_kurulum_ve_venv.md"
 
 
 def test_top_k_limits_results(tmp_path):
-    results = Retriever(make_index(tmp_path), FakeClient([1, 0]), "model").search("tenis", top_k=1)
+    results = Retriever(make_index(tmp_path), FakeClient([1, 0]), "model").search("python", top_k=1)
     assert len(results) == 1
 
 
@@ -72,10 +72,10 @@ def test_empty_database_is_safe_and_does_not_embed(tmp_path):
 def test_hybrid_weights_change_order(tmp_path):
     storage = make_index(tmp_path)
     retriever = Retriever(storage, FakeClient([0, 1]), "model")
-    semantic = retriever.search("Grand", semantic_weight=1.0, keyword_weight=0.0)
-    keyword = retriever.search("Grand", semantic_weight=0.0, keyword_weight=1.0)
-    assert semantic[0].source == "kurallar.txt"
-    assert keyword[0].source == "grand_slam.txt"
+    semantic = retriever.search("Python", semantic_weight=1.0, keyword_weight=0.0)
+    keyword = retriever.search("Python", semantic_weight=0.0, keyword_weight=1.0)
+    assert semantic[0].source == "pip_ve_requirements.md"
+    assert keyword[0].source == "python_kurulum_ve_venv.md"
 
 
 def test_tie_breaker_is_deterministic(tmp_path):
@@ -83,7 +83,9 @@ def test_tie_breaker_is_deterministic(tmp_path):
     results = Retriever(storage, FakeClient([1, 1]), "model").search(
         "x", semantic_weight=1.0, keyword_weight=0.0
     )
-    assert [item.source for item in results] == ["grand_slam.txt", "kurallar.txt"]
+    assert [item.source for item in results] == [
+        "pip_ve_requirements.md", "python_kurulum_ve_venv.md"
+    ]
 
 
 def test_model_alias_mismatch_is_rejected(tmp_path):
@@ -128,10 +130,10 @@ def test_corrupt_or_nonfinite_stored_vector_is_rejected(tmp_path, raw):
 
 
 def test_real_source_and_chunk_metadata_are_returned(tmp_path):
-    result = Retriever(make_index(tmp_path), FakeClient([1, 0]), "model").search("Grand")[0]
-    assert result.source == "grand_slam.txt"
+    result = Retriever(make_index(tmp_path), FakeClient([1, 0]), "model").search("Python")[0]
+    assert result.source == "python_kurulum_ve_venv.md"
     assert result.chunk_index == 0
-    assert "Grand Slam" in result.content
+    assert "sanal ortamları" in result.content
     assert result.combined_score == pytest.approx(0.7 * result.semantic_score + 0.3 * result.keyword_score)
 
 

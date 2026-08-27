@@ -19,8 +19,8 @@ def test_prompt_has_stable_labels_and_metadata():
 
 
 def test_small_model_prompt_has_direct_answer_shape():
-    question = "Grand Slam turnuvaları hangileridir?"
-    built = build_prompt(question, [result(content="Avustralya Açık ve Wimbledon")])
+    question = "Python sanal ortamı nasıl oluşturulur?"
+    built = build_prompt(question, [result(content="python -m venv .venv kullanılır")])
     system = built.messages[0]["content"]
     user = built.messages[1]["content"]
     assert user.startswith("/no_think\n\nBAĞLAM:\n")
